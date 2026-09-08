@@ -1,12 +1,12 @@
 # Concepts & Conventions
 
 This page documents the core assumptions, conventions, and constraints that
-NSEBase builds on.  Understanding these is essential both for using the package
+ReSolverFlowsBase builds on.  Understanding these is essential both for using the package
 correctly and for implementing a new downstream grid.
 
 ## The grid interface
 
-Everything in NSEBase is parameterised on a **grid** — a concrete subtype of
+Everything in ReSolverFlowsBase is parameterised on a **grid** — a concrete subtype of
 `AbstractGrid{T, D, AXES, FFT_DIMS_ORDER, DECOMPOSITION}`.  The five compile-time type parameters
 encode all structural information about the domain:
 
@@ -37,7 +37,7 @@ derivative_matrix(grid, storage_dim::Int, ::Val{ORDER}, mode::OperatorMode) # ->
 
 ### Homogeneous vs. inhomogeneous dimensions
 
-NSEBase draws a sharp distinction between two kinds of dimensions:
+ReSolverFlowsBase draws a sharp distinction between two kinds of dimensions:
 
 - **Homogeneous** (a.k.a. FFT-transformed) dimensions — entries of
   `FFT_DIMS_ORDER`.  These are statistically periodic and are represented in
@@ -45,14 +45,14 @@ NSEBase draws a sharp distinction between two kinds of dimensions:
   by `im · n · wavenumber_scale`.
 - **Inhomogeneous** dimensions — the complement of `FFT_DIMS_ORDER` in `1:D`.
   These are non-periodic (e.g. the wall-normal direction in channel flow).
-  NSEBase provides no derivative for them; downstream packages must extend `ddx!`
+  ReSolverFlowsBase provides no derivative for them; downstream packages must extend `ddx!`
   with their own matrix-multiply or spectral-element method.
 
 ---
 
 ## Field types
 
-NSEBase provides four field types.  All are subtypes of `AbstractArray` and store
+ReSolverFlowsBase provides four field types.  All are subtypes of `AbstractArray` and store
 a reference to their grid alongside their data.
 
 ### `Field`
@@ -232,7 +232,7 @@ F(u, û) # backward transform û -> u
 
 Physical-space nonlinear products are computed on a padded grid using the **3/2
 rule**: the physical-space arrays in `pcache` are allocated with `dealias=true`,
-which extends each homogeneous dimension to `3N/2`.  NSEBase zero-pads the
+which extends each homogeneous dimension to `3N/2`.  ReSolverFlowsBase zero-pads the
 spectral coefficients before transforming to the padded grid and symmetrically
 truncates after transforming back, eliminating aliasing errors from quadratic
 nonlinearities.
@@ -241,7 +241,7 @@ nonlinearities.
 
 ## NSE formulations
 
-NSEBase includes two complete Cartesian primitive-variable formulations:
+ReSolverFlowsBase includes two complete Cartesian primitive-variable formulations:
 
 | Tag struct | Components | Operators |
 |-----------|-----------|----------|
@@ -298,7 +298,7 @@ where `a` and `b` are `ProjectedField`s.
 
 ## Memory and allocation policy
 
-Every hot-path operation in NSEBase is **allocation-free** at steady state.
+Every hot-path operation in ReSolverFlowsBase is **allocation-free** at steady state.
 Cache arrays are pre-allocated once inside the operator structs and reused on
 every call.
 
@@ -310,7 +310,7 @@ operations.  The allocating wrappers (`FFT`, `IFFT`, `shift`, `project`,
 
 # GPU Acceleration
 
-NSEBase supports GPU accelerations, via CUDA, for any subtype of `AbstractGrid`. This is achieved via the `CUDA.cu` method which is responsible for moving all the contents of a grid and all fields built on top it to the GPU. For these routines to work the user must implement the following:
+ReSolverFlowsBase supports GPU accelerations, via CUDA, for any subtype of `AbstractGrid`. This is achieved via the `CUDA.cu` method which is responsible for moving all the contents of a grid and all fields built on top it to the GPU. For these routines to work the user must implement the following:
 
 ```julia
 Adapt.adapt_structure(to, grid)
@@ -345,22 +345,22 @@ reset_expand_cache!(a::ProjectedField, u::VectorField) # -> clears the tuned met
 Alternatively, a particular kernel method can be chosen manually by passing it directly to the method call:
 
 ```julia
-CUDAExt = Base.get_extension(NSEBase, :CUDAExt)
+CUDAExt = Base.get_extension(ReSolverFlowsBase, :CUDAExt)
 method = CUDAExt.DotAtomic(a)
 dot(a, b, method)
 
 # similarly for galerkin project and expand
 ```
 
-To toggle the information output from the autotuning process use `NSEBase.show_tuning_info!(true)`. The number of samples taken during autotuning can also be controlled via the `NSEBase.set_tuning_samples!(::Int)` method.
+To toggle the information output from the autotuning process use `ReSolverFlowsBase.show_tuning_info!(true)`. The number of samples taken during autotuning can also be controlled via the `ReSolverFlowsBase.set_tuning_samples!(::Int)` method.
 
-Finally, all kernels are configured before they run with the optimal number of threads given their input types. This stored for proceeding calls to the kernel such that it doesn't have to regenerated anew each time the kernel is run. To reset this global cache use `NSEBase.reset_launch_cache!()`.
+Finally, all kernels are configured before they run with the optimal number of threads given their input types. This stored for proceeding calls to the kernel such that it doesn't have to regenerated anew each time the kernel is run. To reset this global cache use `ReSolverFlowsBase.reset_launch_cache!()`.
 
 ---
 
 ## MPI and Distributed Computations
 
-MPI parallelisation is supported, and can be accessed by loading [MPI.jl](https://github.com/JuliaParallel/MPI.jl) and [FDGrids.jl](https://github.com/Davide-Lasagna-s-Lab/FDGrids.jl) into the current Julia session alongside NSEBase.
+MPI parallelisation is supported, and can be accessed by loading [MPI.jl](https://github.com/JuliaParallel/MPI.jl) and [FDGrids.jl](https://github.com/Davide-Lasagna-s-Lab/FDGrids.jl) into the current Julia session alongside ReSolverFlowsBase.
 
 Using `distributed` a `DecomposedGrid` object can be constructed, which allows for the construction of `FTField`'s, `Field`'s, and whole operators that are split up over multiple MPI processes. Only decomposing over the inhomogeneous spatial directions is currently supported. 
 

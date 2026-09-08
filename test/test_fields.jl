@@ -49,46 +49,46 @@ end
 @testset "Hermitian symmetry                                                  " begin
     # 1 dimension
     out = randn(ComplexF64, 11)
-    @test NSEBase.apply_symmetry!(copy(out), ()) == out
+    @test ReSolverFlowsBase.apply_symmetry!(copy(out), ()) == out
 
     # 2 dimension
     out = randn(ComplexF64, 11, 11)
-    @test NSEBase.apply_symmetry!(copy(out), ()) == out
-    @test NSEBase.apply_symmetry!(copy(out), (2,)) == out
+    @test ReSolverFlowsBase.apply_symmetry!(copy(out), ()) == out
+    @test ReSolverFlowsBase.apply_symmetry!(copy(out), (2,)) == out
 
     # 3 dimension
     out = randn(ComplexF64, 11, 11, 11)
-    @test NSEBase.apply_symmetry!(copy(out), ()) == out
-    @test NSEBase.apply_symmetry!(copy(out), (3,)) == out
-    new_out = NSEBase.apply_symmetry!(copy(out), (2, 3))
+    @test ReSolverFlowsBase.apply_symmetry!(copy(out), ()) == out
+    @test ReSolverFlowsBase.apply_symmetry!(copy(out), (3,)) == out
+    new_out = ReSolverFlowsBase.apply_symmetry!(copy(out), (2, 3))
     for i in 1:11
         @test new_out[i, 1, 2:6] == reverse(conj.(new_out[i, 1, 7:end]))
     end
-    new_out = NSEBase.apply_symmetry!(copy(out), (3, 1))
+    new_out = ReSolverFlowsBase.apply_symmetry!(copy(out), (3, 1))
     for j in 1:11
         @test new_out[2:6, j, 1] == reverse(conj.(new_out[7:end, j, 1]))
     end
 
     # 4 dimension
     out = randn(ComplexF64, 11, 11, 11, 11)
-    @test NSEBase.apply_symmetry!(copy(out), ()) == out
-    @test NSEBase.apply_symmetry!(copy(out), (2,)) == out
-    new_out = NSEBase.apply_symmetry!(copy(out), (3, 4))
+    @test ReSolverFlowsBase.apply_symmetry!(copy(out), ()) == out
+    @test ReSolverFlowsBase.apply_symmetry!(copy(out), (2,)) == out
+    new_out = ReSolverFlowsBase.apply_symmetry!(copy(out), (3, 4))
     for i in 1:11, j in 1:11
         @test new_out[i, j, 1, 2:6] == reverse(conj.(new_out[i, j, 1, 7:end]))
     end
-    new_out = NSEBase.apply_symmetry!(copy(out), (4, 2))
+    new_out = ReSolverFlowsBase.apply_symmetry!(copy(out), (4, 2))
     for i in 1:11, k in 1:11
         @test new_out[i, 2:6, k, 1] == reverse(conj.(new_out[i, 7:end, k, 1]))
     end
-    new_out = NSEBase.apply_symmetry!(copy(out), (1, 2, 3))
+    new_out = ReSolverFlowsBase.apply_symmetry!(copy(out), (1, 2, 3))
     for l in 1:11
         @test new_out[1, 1, 2:6, l] == reverse(conj.(new_out[1, 1, 7:end, l]))
         for j in 2:11
             @test new_out[1, j, 2:6, l] == reverse(conj.(new_out[1, end-j+2, 7:end, l]))
         end
     end
-    new_out = NSEBase.apply_symmetry!(copy(out), (3, 2, 4))
+    new_out = ReSolverFlowsBase.apply_symmetry!(copy(out), (3, 2, 4))
     for i in 1:11
         @test new_out[i, 1, 1, 2:6] == reverse(conj.(new_out[i, 1, 1, 7:end]))
         for j in 2:11
@@ -112,7 +112,7 @@ end
 
     # test symmetry enforcement
     data = randn(ComplexF64, 16, 6, 11)
-    NSEBase.apply_symmetry!(data, Val((2, 3)))
+    ReSolverFlowsBase.apply_symmetry!(data, Val((2, 3)))
     @test begin
         res = true
         for i in axes(data, 1), k in 1:(size(data, 3) >> 1)
@@ -120,7 +120,7 @@ end
         end; res
     end
     data = randn(ComplexF64, 7, 6, 11, 7)
-    NSEBase.apply_symmetry!(data, Val((3, 1, 4)))
+    ReSolverFlowsBase.apply_symmetry!(data, Val((3, 1, 4)))
     @test begin
         res = true
         for j in axes(data, 2)
@@ -151,7 +151,7 @@ end
 
     # test wavenumber vector indexing
     A = randn(ComplexF64, Nx, (Ny >> 1) +1)
-    A_new = NSEBase.apply_symmetry!(NSEBase.normalise_mean!(A, (2, 3, 4)), (2, 3, 4))
+    A_new = ReSolverFlowsBase.apply_symmetry!(ReSolverFlowsBase.normalise_mean!(A, (2, 3, 4)), (2, 3, 4))
     u = FTField(g, A)
     for nx in 1:Nx
         for ny in 0:(Ny >> 1)
@@ -272,7 +272,7 @@ end
 
     # test wavenumber vector indexing
     A = randn(ComplexF64, M, (Ny >> 1) + 1)
-    A_new = NSEBase.apply_symmetry!(NSEBase.normalise_mean!(A, (2, 3, 4)), (2, 3, 4))
+    A_new = ReSolverFlowsBase.apply_symmetry!(ReSolverFlowsBase.normalise_mean!(A, (2, 3, 4)), (2, 3, 4))
     a = ProjectedField(g, A, Ψ)
     for m in 1:1
         for ny in 0:(Ny >> 1)

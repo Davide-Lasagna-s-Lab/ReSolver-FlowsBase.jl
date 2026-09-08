@@ -9,11 +9,10 @@ JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 MPI = "da04e1cc-30fd-572f-bb4f-1f8673147195"
 MPIPreferences = "3da0fdf6-3ccc-4f1b-acd9-58baa6c99267"
-NSEBase = "9778a910-ce4d-423e-92be-12991f0cf10c"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+ReSolverFlowsBase = "9778a910-ce4d-423e-92be-12991f0cf10c"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [sources]
 FDGrids = {path = "../../FDGrids.jl"}
 HaloArrays = {path = "../../HaloArrays.jl"}
-NSEBase = {path = ".."}

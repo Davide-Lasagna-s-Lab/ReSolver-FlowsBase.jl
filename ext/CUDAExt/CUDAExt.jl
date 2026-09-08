@@ -7,7 +7,7 @@ using CUDA,
 import CUDA: i32
 import Adapt: adapt_structure
 
-import NSEBase,
+import ReSolverFlowsBase,
        FDGrids
 
 # make sure CUDA is functional

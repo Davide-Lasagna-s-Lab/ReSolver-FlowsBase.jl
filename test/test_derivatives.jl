@@ -21,11 +21,11 @@
 @testset "Derivatives                                                         " begin
 
     @testset "analytic field derivatives on a mixed inhomogeneous/FFT grid" begin
-        # This is the NSEBase version of the analytic derivative tests that
+        # This is the ReSolverFlowsBase version of the analytic derivative tests that
         # used to live naturally in ChannelFlow.  The grid has one polynomial
         # collocation direction y and one periodic rfft direction x.  The
         # y-derivative is supplied by the test grid extension, while x is the
-        # generic NSEBase spectral derivative.  The field is a low-degree
+        # generic ReSolverFlowsBase spectral derivative.  The field is a low-degree
         # polynomial in y times resolved Fourier modes in x, so both reference
         # derivatives are known analytically at the collocation points.
         Ny, Nx = 7, 16
@@ -44,14 +44,14 @@
 
         # Physical x is logical coordinate 1 (spectral).  Physical y is logical
         # coordinate 2 (inhomogeneous, dispatches to PolynomialGrid extension).
-        @test parent(NSEBase.ddx!(FTField(g), u)) ≈
+        @test parent(ReSolverFlowsBase.ddx!(FTField(g), u)) ≈
               parent(FFT(Field(g, dudx_fun))) atol=1e-12
-        @test parent(NSEBase.ddy!(FTField(g), u)) ≈
+        @test parent(ReSolverFlowsBase.ddy!(FTField(g), u)) ≈
               parent(FFT(Field(g, dudy_fun))) atol=1e-12
 
         # The Laplacian contract is the sum of the inhomogeneous second
         # derivative and the homogeneous spectral contribution.
-        @test parent(NSEBase.laplacian!(FTField(g), u)) ≈
+        @test parent(ReSolverFlowsBase.laplacian!(FTField(g), u)) ≈
               parent(FFT(Field(g, lapl_fun))) atol=1e-11
     end
 
@@ -64,14 +64,14 @@
         Nx, Ny = 8, 12
         L = 2π
         g = FakeGrid(rand(Float64, Nx), Ny, L)
-        σ = NSEBase.wavenumber_scale(g, 2)            # 2π / L = 1.0 here
+        σ = ReSolverFlowsBase.wavenumber_scale(g, 2)            # 2π / L = 1.0 here
 
         # Build u with random coefficients so we can probe individual
         # wavenumbers after applying ddy!.
         data = randn(ComplexF64, Nx, (Ny >> 1) + 1)
         u = FTField(g, data)
         out = FTField(g)
-        NSEBase.ddy!(out, u)
+        ReSolverFlowsBase.ddy!(out, u)
 
         # Each storage column k (1-based) corresponds to signed wavenumber
         # k-1 on the rfft axis.  Expected: out[:, k] == i · (k-1) · σ · u[:, k].
@@ -84,9 +84,9 @@
 
         # ddz!, ddt! are no-ops on FakeGrid (absent coordinates).
         out2 = FTField(g, copy(data))
-        @test parent(NSEBase.ddz!(out2, u)) == data
+        @test parent(ReSolverFlowsBase.ddz!(out2, u)) == data
         out2 .= data
-        @test parent(NSEBase.ddt!(out2, u)) == data
+        @test parent(ReSolverFlowsBase.ddt!(out2, u)) == data
     end
 
     @testset "_add_homogeneous_laplacian! adds −(k σ)² u (not =, +=)" begin
@@ -96,7 +96,7 @@
         Nx, Ny = 8, 12
         L = 2π
         g = FakeGrid(rand(Float64, Nx), Ny, L)
-        σ = NSEBase.wavenumber_scale(g, 2)
+        σ = ReSolverFlowsBase.wavenumber_scale(g, 2)
 
         u = FTField(g, randn(ComplexF64, Nx, (Ny >> 1) + 1))
 
@@ -107,7 +107,7 @@
         out  = FTField(g, randn(ComplexF64, Nx, (Ny >> 1) + 1))
         seed = copy(parent(out))
 
-        NSEBase._add_homogeneous_laplacian!(out, u)
+        ReSolverFlowsBase._add_homogeneous_laplacian!(out, u)
 
         pu, po = parent(u), parent(out)
         for k in 1:(Ny >> 1) + 1
@@ -124,10 +124,10 @@
         Nx, Ny = 8, 12
         L = 2π
         g = FakeGrid(rand(Float64, Nx), Ny, L)
-        σ = NSEBase.wavenumber_scale(g, 2)
+        σ = ReSolverFlowsBase.wavenumber_scale(g, 2)
 
         u = FTField(g, randn(ComplexF64, Nx, (Ny >> 1) + 1))
-        out = NSEBase.laplacian!(FTField(g), u)
+        out = ReSolverFlowsBase.laplacian!(FTField(g), u)
 
         pu, po = parent(u), parent(out)
         for k in 1:(Ny >> 1) + 1
@@ -146,11 +146,11 @@
 
         u = VectorField([FTField(g, randn(ComplexF64, Nx, (Ny>>1)+1)) for _ in 1:3]...)
         out_vec = VectorField(g; N=3)
-        NSEBase.ddy!(out_vec, u)
+        ReSolverFlowsBase.ddy!(out_vec, u)
 
         for n in 1:3
             expected = FTField(g)
-            NSEBase.ddy!(expected, u[n])
+            ReSolverFlowsBase.ddy!(expected, u[n])
             @test parent(out_vec[n]) ≈ parent(expected) atol=1e-14
         end
     end

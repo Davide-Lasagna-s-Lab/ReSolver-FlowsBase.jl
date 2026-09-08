@@ -7,8 +7,8 @@
 # view of the local interior. An interior view would have different strides and
 # would not match the plan constructed for the actual storage buffer.
 
-NSEBase._fft_size(g::DecomposedGrid) = size(g) .+ 2 .* nhalo(g)
+ReSolverFlowsBase._fft_size(g::DecomposedGrid) = size(g) .+ 2 .* nhalo(g)
 
-# NSEBase's field-level FFT methods call `_fft_data(parent(field))`. For a
+# ReSolverFlowsBase's field-level FFT methods call `_fft_data(parent(field))`. For a
 # HaloArray, the FFTW-compatible storage is the halo-inclusive dense parent.
-NSEBase._fft_data(a::HaloArrays.HaloArray) = parent(a)
+ReSolverFlowsBase._fft_data(a::HaloArrays.HaloArray) = parent(a)

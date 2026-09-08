@@ -26,31 +26,31 @@ struct GPUGrid{T,
                D,
                AXES,
                FFT_DIMS_ORDER,
-               GP<:NSEBase.AbstractGrid{T, D, AXES, FFT_DIMS_ORDER}
-              } <: NSEBase.AbstractGrid{T, D, AXES, FFT_DIMS_ORDER}
+               GP<:ReSolverFlowsBase.AbstractGrid{T, D, AXES, FFT_DIMS_ORDER}
+              } <: ReSolverFlowsBase.AbstractGrid{T, D, AXES, FFT_DIMS_ORDER}
     parent::GP
 
-    GPUGrid(g::GP) where {T, D, AXES, FFT_DIMS_ORDER, GP<:NSEBase.AbstractGrid{T, D, AXES, FFT_DIMS_ORDER}} =
+    GPUGrid(g::GP) where {T, D, AXES, FFT_DIMS_ORDER, GP<:ReSolverFlowsBase.AbstractGrid{T, D, AXES, FFT_DIMS_ORDER}} =
         new{T, D, AXES, FFT_DIMS_ORDER, GP}(g)
 end
 
 # required to be able to pass custom field types over `GPUGrid`'s directly to kernels
 Adapt.adapt_structure(to, g::GPUGrid) = GPUGrid(adapt_structure(to, parent(g)))
 
-CUDA.cu(g::NSEBase.AbstractGrid) = GPUGrid(adapt_structure(CuArray{Float32}, g))
-Adapt.adapt_structure(to, g::NSEBase.AbstractGrid) = throw(NSEBase.NotImplementedError(to, g))
+CUDA.cu(g::ReSolverFlowsBase.AbstractGrid) = GPUGrid(adapt_structure(CuArray{Float32}, g))
+Adapt.adapt_structure(to, g::ReSolverFlowsBase.AbstractGrid) = throw(ReSolverFlowsBase.NotImplementedError(to, g))
 
 """
-    parent(g::GPUGrid) -> NSEBase.AbstractGrid
+    parent(g::GPUGrid) -> ReSolverFlowsBase.AbstractGrid
 
 Return the underlying grid wrapped by `g`.
 """
 Base.parent(g::GPUGrid) = g.parent
 
 Base.size(g::GPUGrid) = size(parent(g))
-NSEBase.points(g::GPUGrid; dealias::Bool=false) = CUDA.cu.(NSEBase.points(parent(g); dealias=dealias))
-NSEBase.weights(g::GPUGrid) = NSEBase.weights(parent(g))
-NSEBase.wavenumber_scale(g::GPUGrid, dim::Int) = NSEBase.wavenumber_scale(parent(g), dim)
+ReSolverFlowsBase.points(g::GPUGrid; dealias::Bool=false) = CUDA.cu.(ReSolverFlowsBase.points(parent(g); dealias=dealias))
+ReSolverFlowsBase.weights(g::GPUGrid) = ReSolverFlowsBase.weights(parent(g))
+ReSolverFlowsBase.wavenumber_scale(g::GPUGrid, dim::Int) = ReSolverFlowsBase.wavenumber_scale(parent(g), dim)
 
 """
     derivative_matrix(g::GPUGrid, stor_dim::Int,
@@ -62,11 +62,11 @@ dimension `stor_dim`, in its forward (`ADJ=false`) or adjoint
 
 Downstream single-domain grid types implement this on `parent(g)`:
 ```
-NSEBase.derivative_matrix(::ParentType, stor_dim::Int, ::Val{ORDER}, ::Val{ADJ})
+ReSolverFlowsBase.derivative_matrix(::ParentType, stor_dim::Int, ::Val{ORDER}, ::Val{ADJ})
 ```
 """
-NSEBase.derivative_matrix(g::GPUGrid,
+ReSolverFlowsBase.derivative_matrix(g::GPUGrid,
                    stor_dim::Int,
                            ::Val{ORDER},
-                       mode::NSEBase.OperatorMode=Forward()) where {ORDER} =
-    NSEBase.derivative_matrix(parent(g), stor_dim, Val(ORDER), mode)
+                       mode::ReSolverFlowsBase.OperatorMode=Forward()) where {ORDER} =
+    ReSolverFlowsBase.derivative_matrix(parent(g), stor_dim, Val(ORDER), mode)

@@ -22,8 +22,8 @@
 # `:t`); public accessors also accept physical symbols via `Symbol` overloads.
 # Internal helpers and derivative kernels always work with `Int` storage dims.
 #
-# The only method the parent grid must add beyond the standard NSEBase interface
-# is `NSEBase.derivative_matrix(parent, stor_dim::Int, ::Val{ORDER}, ::Val{ADJ})`.
+# The only method the parent grid must add beyond the standard ReSolverFlowsBase interface
+# is `ReSolverFlowsBase.derivative_matrix(parent, stor_dim::Int, ::Val{ORDER}, ::Val{ADJ})`.
 
 # ------------------------------------------------------------------ #
 # Private helpers                                                    #
@@ -45,11 +45,11 @@ end
 
 """
     DecomposedGrid{T, D, AXES, FFT_DIMS_ORDER, DDIMS, NHALO, S, GP, W, P} <:
-        NSEBase.AbstractGrid{T, D, AXES, FFT_DIMS_ORDER}
+        ReSolverFlowsBase.AbstractGrid{T, D, AXES, FFT_DIMS_ORDER}
 
 Generic decomposed-grid wrapper around a single-domain parent grid.
 
-Whether a grid is decomposed is *not* recorded in the NSEBase `AbstractGrid`
+Whether a grid is decomposed is *not* recorded in the ReSolverFlowsBase `AbstractGrid`
 type — `DecomposedGrid` carries the partition metadata itself. The partitioned
 storage dimensions are the `DDIMS` type parameter, exposed via
 [`decomposition_storage_dims`](@ref).
@@ -78,10 +78,10 @@ struct DecomposedGrid{T,
                       DDIMS,
                       NHALO,
                       S,
-                      GP<:NSEBase.AbstractGrid{T, D, AXES, FFT_DIMS_ORDER},
+                      GP<:ReSolverFlowsBase.AbstractGrid{T, D, AXES, FFT_DIMS_ORDER},
                       W,
                       P,
-                      COMM} <: NSEBase.AbstractGrid{T, D, AXES, FFT_DIMS_ORDER}
+                      COMM} <: ReSolverFlowsBase.AbstractGrid{T, D, AXES, FFT_DIMS_ORDER}
     # The single-domain (serial) grid this wrapper exposes as decomposed.
     parent     :: GP
     # Full-Cartesian MPI communicator built by `distributed(...)` (one Cart
@@ -93,7 +93,7 @@ struct DecomposedGrid{T,
     # lazy `getindex` slicing here would allocate per call.
     weights    :: W
     # Per-rank coordinate vectors along each inhomogeneous storage dim, in
-    # `NSEBase.inhomogeneous_storage_dims(g)` order. The k-th entry is a `Vector`
+    # `ReSolverFlowsBase.inhomogeneous_storage_dims(g)` order. The k-th entry is a `Vector`
     # representing storage dim `inhomogeneous_storage_dims(g)[k]`. Cached for the
     # same reason as `weights`: `points(g)` is called every time a Field is
     # initialised by broadcasting, and re-slicing the parent's stored
@@ -105,11 +105,11 @@ DecomposedGrid(gp::GP,
                DDIMS, NHALO, LOCAL_SIZE,
                weights::W, inh_points::P,
                comm::COMM) where {
-        T, D, AXES, FFT_DIMS_ORDER, GP<:NSEBase.AbstractGrid{T, D, AXES, FFT_DIMS_ORDER}, W, P, COMM} =
+        T, D, AXES, FFT_DIMS_ORDER, GP<:ReSolverFlowsBase.AbstractGrid{T, D, AXES, FFT_DIMS_ORDER}, W, P, COMM} =
     DecomposedGrid{T, D, AXES, FFT_DIMS_ORDER, DDIMS, NHALO, LOCAL_SIZE, GP, W, P, COMM}(gp, comm, weights, inh_points)
 
 """
-    distributed(g::NSEBase.AbstractGrid, comm::MPI.Comm;
+    distributed(g::ReSolverFlowsBase.AbstractGrid, comm::MPI.Comm;
                 decomposed_physical_dims::NTuple{K, Symbol},
                 nprocesses::NTuple{K, Int},
                 nhalo::NTuple{K, Int}) -> DecomposedGrid
@@ -145,7 +145,7 @@ Validation:
 
   - `prod(nprocesses) == MPI.Comm_size(comm)`.
   - Every `decomposed_physical_dims[k]` is a spatial inhomogeneous
-    direction (see [`NSEBase.spatial_inhomogeneous_physical_dims`](@ref)).
+    direction (see [`ReSolverFlowsBase.spatial_inhomogeneous_physical_dims`](@ref)).
   - For each `k`, `size(g, storage_dim(g, decomposed_physical_dims[k]))`
     is divisible by `nprocesses[k]` (uniform decomposition).
 
@@ -163,7 +163,7 @@ dg = distributed(g, MPI.COMM_WORLD;
                  nhalo=(1,))
 ```
 """
-function NSEBase.distributed(               g::NSEBase.AbstractGrid{T, D},
+function ReSolverFlowsBase.distributed(               g::ReSolverFlowsBase.AbstractGrid{T, D},
                                          comm::COMM;
                      decomposed_physical_dims::NTuple{K, Symbol},
                                    nprocesses::NTuple{K, Int},
@@ -177,7 +177,7 @@ function NSEBase.distributed(               g::NSEBase.AbstractGrid{T, D},
     # always homogeneous in this package, so the inhomogeneous_physical_dims
     # set is automatically free of `:t` and the user-facing "spatial"
     # qualifier would be redundant.
-    allowed = NSEBase.inhomogeneous_physical_dims(g)
+    allowed = ReSolverFlowsBase.inhomogeneous_physical_dims(g)
     all(d in allowed for d in decomposed_physical_dims) ||
         throw(ArgumentError("decomposed_physical_dims=$decomposed_physical_dims must be a subset of inhomogeneous_physical_dims=$allowed"))
     length(unique(decomposed_physical_dims)) == K ||
@@ -185,7 +185,7 @@ function NSEBase.distributed(               g::NSEBase.AbstractGrid{T, D},
     all(>(0), nhalo) ||
         throw(ArgumentError("nhalo entries must be positive along decomposed dimensions"))
 
-    decomposed_storage_dims = ntuple(k -> NSEBase.storage_dim(g, decomposed_physical_dims[k]), Val(K))
+    decomposed_storage_dims = ntuple(k -> ReSolverFlowsBase.storage_dim(g, decomposed_physical_dims[k]), Val(K))
 
     # `prod(nprocesses)` must consume every rank in `comm`.
     prod(nprocesses) == MPI.Comm_size(comm) ||
@@ -267,7 +267,7 @@ end
 # ------------------------------------------------------------------ #
 
 """
-    parent(g::DecomposedGrid) -> NSEBase.AbstractGrid
+    parent(g::DecomposedGrid) -> ReSolverFlowsBase.AbstractGrid
 
 Return the underlying single-domain grid wrapped by `g`. This is exactly the
 object passed to [`distributed`](@ref).
@@ -278,7 +278,7 @@ Base.parent(g::DecomposedGrid) = g.parent
     decomposition_storage_dims(g::DecomposedGrid) -> Tuple{Int, ...}
 
 Return the storage dimensions along which `g` is partitioned, i.e. the `DDIMS`
-type parameter. These accessors live in MPIExt rather than NSEBase: the
+type parameter. These accessors live in MPIExt rather than ReSolverFlowsBase: the
 core `AbstractGrid` type is agnostic to decomposition, and only the MPI wrapper
 knows a grid is partitioned.
 """
@@ -292,7 +292,7 @@ Physical-coordinate symbols for the partitioned storage dimensions of `g` —
 the `Symbol` counterpart of [`decomposition_storage_dims`](@ref).
 """
 decomposition_physical_dims(g::DecomposedGrid) =
-    map(d -> NSEBase.physical_dim(g, d), decomposition_storage_dims(g))
+    map(d -> ReSolverFlowsBase.physical_dim(g, d), decomposition_storage_dims(g))
 
 """
     ndecomposed_dims(g::DecomposedGrid) -> Int
@@ -302,7 +302,7 @@ Return the number of storage dimensions along which `g` is partitioned.
 ndecomposed_dims(g::DecomposedGrid) = length(decomposition_storage_dims(g))
 
 # ------------------------------------------------------------------ #
-# NSEBase grid interface — per-rank queries                          #
+# ReSolverFlowsBase grid interface — per-rank queries                          #
 # ------------------------------------------------------------------ #
 
 """
@@ -341,9 +341,9 @@ For inhomogeneous dims the per-rank vector is read from `g.inh_points`
 (cached at construction by `distributed(...)`) and reshaped to broadcast
 shape — no slicing or copying happens here.
 """
-function NSEBase.points(g::DecomposedGrid{T, D}; dealias::Bool=false) where {T, D}
-    points = collect(NSEBase.points(g.parent; dealias=dealias))
-    for (k, d) in pairs(NSEBase.inhomogeneous_storage_dims(g))
+function ReSolverFlowsBase.points(g::DecomposedGrid{T, D}; dealias::Bool=false) where {T, D}
+    points = collect(ReSolverFlowsBase.points(g.parent; dealias=dealias))
+    for (k, d) in pairs(ReSolverFlowsBase.inhomogeneous_storage_dims(g))
         points[d] = _broadcast_axis(g.inh_points[k], d, Val(D))
     end
     return Tuple(points)
@@ -362,10 +362,10 @@ The slice is computed **once** at construction time and stored on the grid
 (`g.weights`). Inner-product loops (`project!`, `dot`, weighted norms) can
 therefore call `weights(g)` without allocating.
 """
-NSEBase.weights(g::DecomposedGrid) = g.weights
+ReSolverFlowsBase.weights(g::DecomposedGrid) = g.weights
 
 # ------------------------------------------------------------------ #
-# NSEBase grid interface — pure parent delegations                   #
+# ReSolverFlowsBase grid interface — pure parent delegations                   #
 # ------------------------------------------------------------------ #
 
 """
@@ -375,34 +375,34 @@ NSEBase.weights(g::DecomposedGrid) = g.weights
 Return the wavenumber scale for an FFT-transformed direction.
 
 `phys_dim` is the user-facing `Symbol` form (`:x`, `:y`, `:z`,
-`:t`). `stor_dim::Integer` is the internal contract NSEBase reaches
+`:t`). `stor_dim::Integer` is the internal contract ReSolverFlowsBase reaches
 for inside its `dd!(out, u, ::Val{STORAGE_DIM})` primitive.
 
 Decomposition does not change which physical period a transformed
 direction covers, so both forms delegate to `parent(g)` after
 translating to the storage axis as needed.
 """
-NSEBase.wavenumber_scale(g::DecomposedGrid, phys_dim::Symbol) =
-    NSEBase.wavenumber_scale(g.parent, NSEBase.storage_dim(g, phys_dim))
+ReSolverFlowsBase.wavenumber_scale(g::DecomposedGrid, phys_dim::Symbol) =
+    ReSolverFlowsBase.wavenumber_scale(g.parent, ReSolverFlowsBase.storage_dim(g, phys_dim))
 
-NSEBase.wavenumber_scale(g::DecomposedGrid, stor_dim::Int) =
-    NSEBase.wavenumber_scale(g.parent, stor_dim)
+ReSolverFlowsBase.wavenumber_scale(g::DecomposedGrid, stor_dim::Int) =
+    ReSolverFlowsBase.wavenumber_scale(g.parent, stor_dim)
 
 """
     growto(g::DecomposedGrid, target_size) -> DecomposedGrid
 
 Return a `DecomposedGrid` whose parent has been resized to `target_size`.
 
-The parent is regrown via `NSEBase.growto(parent(g), target_size)` and the
+The parent is regrown via `ReSolverFlowsBase.growto(parent(g), target_size)` and the
 result is re-wrapped with the **same** communicator, decomposition dims, and
 halo widths as `g`. Only FFT-transformed dims change size, so the
 divisibility precondition along the decomposed (inhomogeneous) dims still
 holds.
 """
-function NSEBase.growto(g::DecomposedGrid{T, D, AXES, FFT_DIMS_ORDER, DDIMS, NHALO, S},
+function ReSolverFlowsBase.growto(g::DecomposedGrid{T, D, AXES, FFT_DIMS_ORDER, DDIMS, NHALO, S},
                         target_size::NTuple{N, Int}) where
         {T, D, AXES, FFT_DIMS_ORDER, DDIMS, NHALO, S, N}
-    new_parent = NSEBase.growto(g.parent, target_size)
+    new_parent = ReSolverFlowsBase.growto(g.parent, target_size)
 
     # `growto` only resizes FFT-transformed dims. Decomposed dims keep
     # their per-rank size unchanged; the new local size therefore takes
@@ -480,7 +480,7 @@ nhalo(::DecomposedGrid{T, D, AXES, FFT_DIMS_ORDER, DDIMS, NHALO}) where
     {T, D, AXES, FFT_DIMS_ORDER, DDIMS, NHALO} = NHALO
 
 nhalo(g::DecomposedGrid, phys_dim::Symbol) =
-    nhalo(g)[NSEBase.storage_dim(g, phys_dim)]
+    nhalo(g)[ReSolverFlowsBase.storage_dim(g, phys_dim)]
 
 nhalo(g::DecomposedGrid, stor_dim::Int) = nhalo(g)[stor_dim]
 
@@ -497,7 +497,7 @@ interior size on this rank.
 global_size(g::DecomposedGrid) = size(g.parent)
 
 global_size(g::DecomposedGrid, phys_dim::Symbol) =
-    global_size(g)[NSEBase.storage_dim(g, phys_dim)]
+    global_size(g)[ReSolverFlowsBase.storage_dim(g, phys_dim)]
     
 global_size(g::DecomposedGrid, stor_dim::Int) = global_size(g)[stor_dim]
 
@@ -511,14 +511,14 @@ adjoint (`AdjointDiscrete()`) form.
 
 Downstream single-domain grid types implement this on `parent(g)`:
 ```
-NSEBase.derivative_matrix(::ParentType, stor_dim::Int, ::Val{ORDER}, mode)
+ReSolverFlowsBase.derivative_matrix(::ParentType, stor_dim::Int, ::Val{ORDER}, mode)
 ```
 """
-NSEBase.derivative_matrix(g::DecomposedGrid,
+ReSolverFlowsBase.derivative_matrix(g::DecomposedGrid,
                    stor_dim::Int,
                            ::Val{ORDER},
                        mode::OperatorMode=Forward()) where {ORDER} =
-    NSEBase.derivative_matrix(g.parent, stor_dim, Val(ORDER), mode)
+    ReSolverFlowsBase.derivative_matrix(g.parent, stor_dim, Val(ORDER), mode)
 
 # Neighbour predicates. Periodic directions always have neighbours;
 # non-periodic ones do not at the first/last rank.
@@ -565,18 +565,18 @@ local/global distinction matters. Halo cells are not included.
 local_size(g::DecomposedGrid) = size(g)
 
 local_size(g::DecomposedGrid, phys_dim::Symbol) =
-    size(g, NSEBase.storage_dim(g, phys_dim))
+    size(g, ReSolverFlowsBase.storage_dim(g, phys_dim))
 local_size(g::DecomposedGrid, stor_dim::Int) = size(g, stor_dim)
 
 """
     local_physical_size(g::DecomposedGrid; dealias=false) -> NTuple{D,Int}
 
 Return the per-rank physical-space interior size. With `dealias=true`, the FFT
-storage dimensions are padded by the same 3/2-rule used by `NSEBase.Field`.
+storage dimensions are padded by the same 3/2-rule used by `ReSolverFlowsBase.Field`.
 Halo cells are not included.
 """
 local_physical_size(g::DecomposedGrid; dealias::Bool=false) =
-    dealias ? NSEBase.get_padded_size(local_size(g), NSEBase.fft_storage_dims(g)) :
+    dealias ? ReSolverFlowsBase.get_padded_size(local_size(g), ReSolverFlowsBase.fft_storage_dims(g)) :
               local_size(g)
 
 """
@@ -588,7 +588,7 @@ real-to-complex layout; all other dimensions keep their local extent.
 Halo cells are not included.
 """
 local_transform_size(g::DecomposedGrid) =
-    NSEBase._get_transform_size(local_size(g), NSEBase.rfft_storage_dim(g))
+    ReSolverFlowsBase._get_transform_size(local_size(g), ReSolverFlowsBase.rfft_storage_dim(g))
 
 """
     global_first_index(g::DecomposedGrid, phys_dim::Symbol) -> Int
@@ -599,7 +599,7 @@ Assumes a uniform Cartesian decomposition; passed to FDGrids `mul!` so
 local array indices map to the correct rows of the global FD matrix.
 """
 function global_first_index(g::DecomposedGrid, phys_dim::Symbol)
-    global_first_index(g, NSEBase.storage_dim(g, phys_dim))
+    global_first_index(g, ReSolverFlowsBase.storage_dim(g, phys_dim))
 end
 function global_first_index(g::DecomposedGrid, stor_dim::Int)
     cart = _cart_topology(comm(g))
@@ -621,7 +621,7 @@ that borders a neighbouring rank; rows next to a physical domain boundary are
 always included.
 """
 function local_interior_range(g::DecomposedGrid, phys_dim::Symbol)
-    local_interior_range(g, NSEBase.storage_dim(g, phys_dim))
+    local_interior_range(g, ReSolverFlowsBase.storage_dim(g, phys_dim))
 end
 function local_interior_range(g::DecomposedGrid, stor_dim::Int)
     h = nhalo(g, stor_dim)
@@ -642,7 +642,7 @@ they can be differentiated. Returns `(lower, upper)`; an entry is the empty
 range `1:0` when no communication is required on that side.
 """
 function local_boundary_ranges(g::DecomposedGrid, phys_dim::Symbol)
-    local_boundary_ranges(g, NSEBase.storage_dim(g, phys_dim))
+    local_boundary_ranges(g, ReSolverFlowsBase.storage_dim(g, phys_dim))
 end
 function local_boundary_ranges(g::DecomposedGrid, stor_dim::Int)
     h = nhalo(g, stor_dim)
@@ -664,18 +664,18 @@ local_boundary_ranges(g::DecomposedGrid, ::Val{N}) where {N} = local_boundary_ra
 @inline _broadcast_axis(v, d::Int, ::Val{D}) where {D} =
     reshape(v, ntuple(j -> j == d ? length(v) : 1, Val(D)))
 
-function _local_weights(g::NSEBase.AbstractGrid, cart)
-    parent_weights = NSEBase.weights(g)
-    inh_storage_dims = NSEBase.inhomogeneous_storage_dims(g)
+function _local_weights(g::ReSolverFlowsBase.AbstractGrid, cart)
+    parent_weights = ReSolverFlowsBase.weights(g)
+    inh_storage_dims = ReSolverFlowsBase.inhomogeneous_storage_dims(g)
     slices = ntuple(length(inh_storage_dims)) do axis
         _local_axis_indices(size(parent_weights, axis), inh_storage_dims[axis], cart)
     end
     return parent_weights[slices...]
 end
 
-function _local_inhomogeneous_points(g::NSEBase.AbstractGrid, cart)
-    parent_points = NSEBase.points(g)
-    return map(NSEBase.inhomogeneous_storage_dims(g)) do stor_dim
+function _local_inhomogeneous_points(g::ReSolverFlowsBase.AbstractGrid, cart)
+    parent_points = ReSolverFlowsBase.points(g)
+    return map(ReSolverFlowsBase.inhomogeneous_storage_dims(g)) do stor_dim
         global_vec = Vector(vec(parent_points[stor_dim]))
         axis_inds  = _local_axis_indices(length(global_vec), stor_dim, cart)
         axis_inds isa Colon ? global_vec : global_vec[axis_inds]

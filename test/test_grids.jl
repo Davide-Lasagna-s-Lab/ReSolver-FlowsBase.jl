@@ -37,15 +37,15 @@ function TripleGrid(Ny, Nx, Nz; α=1.0, β=1.0)
 end
 
 Base.size(g::TripleGrid)                                  = (g.Ny, g.Nx, g.Nz)
-NSEBase.weights(g::TripleGrid)                            = g.ws
-NSEBase.wavenumber_scale(g::TripleGrid, dim::Int)         = dim == 2 ? g.α :
+ReSolverFlowsBase.weights(g::TripleGrid)                            = g.ws
+ReSolverFlowsBase.wavenumber_scale(g::TripleGrid, dim::Int)         = dim == 2 ? g.α :
                                                             dim == 3 ? g.β :
                                                             one(g.α)
 Base.convert(::Type{Float64}, g::TripleGrid)              = g
 
 # `growto` increases the homogeneous resolution while keeping the inhomogeneous
 # size (Ny) and the wavenumber scales (α, β) fixed.
-function NSEBase.growto(g::TripleGrid, target_size::NTuple{2, Int})
+function ReSolverFlowsBase.growto(g::TripleGrid, target_size::NTuple{2, Int})
     Nx_new, Nz_new = target_size
     return TripleGrid(g.Ny, Nx_new, Nz_new, g.α, g.β, g.ws)
 end
@@ -53,7 +53,7 @@ end
 # Broadcastable coordinate arrays in storage order.  The inhomogeneous
 # direction is exposed as a custom non-uniform `g.y` vector; the two
 # homogeneous directions cover their full periods with equally-spaced points.
-NSEBase.points(g::TripleGrid; dealias=false) = begin
+ReSolverFlowsBase.points(g::TripleGrid; dealias=false) = begin
     Ny, Nx, Nz = size(g)
     y = reshape(range(-1, 1, length=Ny) |> collect, Ny, 1, 1)
     x = reshape((0:Nx-1) * (2π/g.α/Nx),             1, Nx, 1)
@@ -124,18 +124,18 @@ function PolynomialGrid(y::AbstractVector{<:Real}, Nx::Integer, Lx::Real=2π)
 end
 
 Base.size(g::PolynomialGrid)                         = (length(g.y), g.Nx)
-NSEBase.weights(g::PolynomialGrid)                   = g.ws
-NSEBase.wavenumber_scale(g::PolynomialGrid, dim::Int) = dim == 2 ? 2π / g.Lx : one(g.Lx)
+ReSolverFlowsBase.weights(g::PolynomialGrid)                   = g.ws
+ReSolverFlowsBase.wavenumber_scale(g::PolynomialGrid, dim::Int) = dim == 2 ? 2π / g.Lx : one(g.Lx)
 Base.convert(::Type{Float64}, g::PolynomialGrid)     = g
 
-NSEBase.points(g::PolynomialGrid; dealias=false) = begin
-    Nx = dealias ? NSEBase.get_padded_size(size(g), NSEBase.fft_storage_dims(g))[2] : g.Nx
+ReSolverFlowsBase.points(g::PolynomialGrid; dealias=false) = begin
+    Nx = dealias ? ReSolverFlowsBase.get_padded_size(size(g), ReSolverFlowsBase.fft_storage_dims(g))[2] : g.Nx
     y = reshape(g.y, :, 1)
     x = reshape((0:Nx-1) * (g.Lx / Nx), 1, :)
     return (y, x)
 end
 
-function NSEBase.derivative_matrix(g::PolynomialGrid,
+function ReSolverFlowsBase.derivative_matrix(g::PolynomialGrid,
                                     ::Int,
                                     ::Val{ORDER},
                                     ::OperatorMode) where {ORDER}
@@ -156,8 +156,8 @@ struct GalerkinGrid{S} <: AbstractGrid{Float64, 2, (1, 2, nothing, nothing), (2,
 end
 
 Base.size(::GalerkinGrid{S}) where {S} = S
-NSEBase.weights(g::GalerkinGrid) = g.ws
-NSEBase.wavenumber_scale(::GalerkinGrid, ::Int) = 1.0
+ReSolverFlowsBase.weights(g::GalerkinGrid) = g.ws
+ReSolverFlowsBase.wavenumber_scale(::GalerkinGrid, ::Int) = 1.0
 
 
 # "Flipped" 3-D grid: FFT dimensions come FIRST in storage, inhomogeneous LAST.
@@ -185,5 +185,5 @@ end
 
 # size(g) returns (Nx, Nz, Ny) — storage-order sizes.
 Base.size(g::FlippedGrid) = (g.Nx, g.Nz, g.Ny)
-NSEBase.weights(g::FlippedGrid)              = g.ws
-NSEBase.wavenumber_scale(::FlippedGrid, ::Int) = 1.0
+ReSolverFlowsBase.weights(g::FlippedGrid)              = g.ws
+ReSolverFlowsBase.wavenumber_scale(::FlippedGrid, ::Int) = 1.0

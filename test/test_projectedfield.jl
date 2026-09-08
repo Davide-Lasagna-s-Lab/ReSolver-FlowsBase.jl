@@ -21,7 +21,7 @@
         Ψ = _projected_modes(g, Nm)
 
         a = ProjectedField(g, Ψ)
-        @test NSEBase.grid(a) === g
+        @test ReSolverFlowsBase.grid(a) === g
         @test modes(a) === Ψ
         @test size(a) == (Nm, (Nx >> 1) + 1, Nz)
         @test all(iszero, parent(a))
@@ -126,7 +126,7 @@
 
         b = copy(a)
         @test b[1, 2, 1] == a[1, 2, 1]
-        @test NSEBase.grid(b) === NSEBase.grid(a)
+        @test ReSolverFlowsBase.grid(b) === ReSolverFlowsBase.grid(a)
         @test modes(b) === modes(a)
         # Independence: modifying a does not affect b
         a[1, 2, 1] = 99 + 0im
@@ -134,7 +134,7 @@
 
         z = zero(a)
         @test all(iszero, parent(z))
-        @test NSEBase.grid(z) === NSEBase.grid(a)
+        @test ReSolverFlowsBase.grid(z) === ReSolverFlowsBase.grid(a)
         @test modes(z) === modes(a)
     end
 
@@ -178,7 +178,7 @@
         parent(a) .= raw
         snapshot = copy(raw)
 
-        NSEBase.apply_symmetry!(a)
+        ReSolverFlowsBase.apply_symmetry!(a)
 
         # DC plane: signed z modes are conjugate pairs for every mode.
         for m in 1:Nm, kz in 1:(Nz >> 1)
@@ -197,9 +197,9 @@
         a = ProjectedField(g, _projected_modes(g, Nm))
         parent(a) .= randn(ComplexF64, size(parent(a)))
 
-        NSEBase.apply_symmetry!(a)
+        ReSolverFlowsBase.apply_symmetry!(a)
         after_first = copy(parent(a))
-        NSEBase.apply_symmetry!(a)
+        ReSolverFlowsBase.apply_symmetry!(a)
 
         @test parent(a) == after_first
     end
@@ -217,7 +217,7 @@
             parent(a)[m, :, :] .= m .* randn(ComplexF64, (Nx >> 1) + 1, Nz)
         end
 
-        NSEBase.apply_symmetry!(a)
+        ReSolverFlowsBase.apply_symmetry!(a)
 
         # After symmetrization each mode slice must independently satisfy
         # the conjugate-pair condition — mode m data must not have leaked

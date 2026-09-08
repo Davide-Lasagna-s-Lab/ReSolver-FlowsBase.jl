@@ -7,7 +7,7 @@ catch
     # otherwise give up with the extension and throw a warning
     @warn """Failed to load HaloArrays.jl required to use MPIExt.
              Either add the missing packages or MPI functionality 
-             for NSEBase will not be available."""
+             for ReSolverFlowsBase will not be available."""
 end
 
 end

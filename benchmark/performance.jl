@@ -1,8 +1,8 @@
-# Performance benchmarks for NSEBase hot paths on a 4-D channel-flow layout.
+# Performance benchmarks for ReSolverFlowsBase hot paths on a 4-D channel-flow layout.
 #
 # Sections:
 #   1. dot(u, v)       — FTField and ProjectedField, CartesianIndices vs split loop
-#   2. shift!(u, s)    — FTField, NSEBase vs equivalent hand-written double loop
+#   2. shift!(u, s)    — FTField, ReSolverFlowsBase vs equivalent hand-written double loop
 #   3. normdiff+shift  — overhead of the shift relative to plain normdiff
 #
 # Grid layout (mirrors ChannelGrid from ReSolver-ChannelFlow.jl):
@@ -15,7 +15,7 @@
 using LinearAlgebra
 using Printf
 using BenchmarkTools
-using NSEBase
+using ReSolverFlowsBase
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Mock grid — minimal concrete subtype carrying only the type parameters and
@@ -28,18 +28,18 @@ using NSEBase
 const BENCH_AXES      = (2, 1, 3, 4)
 const BENCH_FFT_ORDER = (2, 3, 4)
 
-struct BenchGrid{S} <: NSEBase.AbstractGrid{Float64, 4, BENCH_AXES, BENCH_FFT_ORDER}
+struct BenchGrid{S} <: ReSolverFlowsBase.AbstractGrid{Float64, 4, BENCH_AXES, BENCH_FFT_ORDER}
     ws :: Vector{Float64}   # wall-normal (inhomogeneous) quadrature weights
 end
 
-Base.size(g::BenchGrid{S}) where {S} = NSEBase.to_storage_order(S, g)
-NSEBase.weights(g::BenchGrid) = g.ws
-NSEBase.wavenumber_scale(::BenchGrid, ::Int) = 1.0
-NSEBase.points(g::BenchGrid; dealias=false) = ntuple(d -> ones(size(g, d)), 4)
+Base.size(g::BenchGrid{S}) where {S} = ReSolverFlowsBase.to_storage_order(S, g)
+ReSolverFlowsBase.weights(g::BenchGrid) = g.ws
+ReSolverFlowsBase.wavenumber_scale(::BenchGrid, ::Int) = 1.0
+ReSolverFlowsBase.points(g::BenchGrid; dealias=false) = ntuple(d -> ones(size(g, d)), 4)
 
 # Minimal ddx! stub (not exercised in dot benchmark)
-NSEBase.ddx!(out, u, ::Val; kwargs...) = (out .= 0; out)
-NSEBase._inhomogeneous_laplacian!(out, u; kwargs...) = (out .= 0; out)
+ReSolverFlowsBase.ddx!(out, u, ::Val; kwargs...) = (out .= 0; out)
+ReSolverFlowsBase._inhomogeneous_laplacian!(out, u; kwargs...) = (out .= 0; out)
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Grid sizes  (representative channel-flow run: 63³ × 33)
@@ -69,8 +69,8 @@ parent(v) .= randn(ComplexF64, size(parent(v)))
 function dot_cartesian(u, v, ws, g)
     s = 0.0
     @inbounds for I in CartesianIndices(u)
-        s += NSEBase.one_or_two(I, g) *
-             ws[NSEBase.inhomogeneous_indices(I, g)...] *
+        s += ReSolverFlowsBase.one_or_two(I, g) *
+             ws[ReSolverFlowsBase.inhomogeneous_indices(I, g)...] *
              real(conj(u[I]) * v[I])
     end
     return s / 2
@@ -100,9 +100,9 @@ function dot_handwritten(u, v, ws)
 end
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Approach C: NSEBase.dot  (whatever is on the current branch)
+# Approach C: ReSolverFlowsBase.dot  (whatever is on the current branch)
 # ──────────────────────────────────────────────────────────────────────────────
-dot_nsebase(u, v) = dot(u, v)
+dot_ReSolverFlowsBase(u, v) = dot(u, v)
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Correctness
@@ -111,8 +111,8 @@ ref = dot_cartesian(parent(u), parent(v), ws, g)
 let d = abs(dot_handwritten(parent(u), parent(v), ws) - ref)
     @assert d < 1e-6 "hand-written disagrees: |Δ| = $d"
 end
-let d = abs(dot_nsebase(u, v) - ref)
-    @assert d < 1e-6 "NSEBase.dot disagrees: |Δ| = $d"
+let d = abs(dot_ReSolverFlowsBase(u, v) - ref)
+    @assert d < 1e-6 "ReSolverFlowsBase.dot disagrees: |Δ| = $d"
 end
 println("Correctness: ok")
 
@@ -129,7 +129,7 @@ b_data = randn(ComplexF64, M, Nx_half, Nz, Nt)
 pa = ProjectedField(g, a_data, modes)
 pb = ProjectedField(g, b_data, modes)
 
-dot_proj_nsebase(a, b) = dot(a, b)   # NSEBase.dot for ProjectedField
+dot_proj_ReSolverFlowsBase(a, b) = dot(a, b)   # ReSolverFlowsBase.dot for ProjectedField
 
 function dot_proj_handwritten(a, b)
     s = 0.0
@@ -146,7 +146,7 @@ function dot_proj_handwritten(a, b)
     return s / 2
 end
 
-let d = abs(dot_proj_nsebase(pa, pb) - dot_proj_handwritten(pa, pb))
+let d = abs(dot_proj_ReSolverFlowsBase(pa, pb) - dot_proj_handwritten(pa, pb))
     @assert d < 1e-6 "ProjectedField dot disagrees: |Δ| = $d"
 end
 println("ProjectedField correctness: ok")
@@ -161,18 +161,18 @@ pu = parent(u); pv = parent(v)   # plain arrays for the raw-loop variants
 println("\n── FTField dot  (Nx=$Nx, Ny=$Ny, Nz=$Nz, Nt=$Nt) ─────────────────────")
 t_cart = @belapsed dot_cartesian($pu, $pv, $ws, $g)
 t_hand = @belapsed dot_handwritten($pu, $pv, $ws)
-t_nse  = @belapsed dot_nsebase($u, $v)
+t_nse  = @belapsed dot_ReSolverFlowsBase($u, $v)
 @printf "  A  CartesianIndices (raw loop)  : %7.3f ms\n"  t_cart * 1e3
 @printf "  B  hand-written split loop      : %7.3f ms\n"  t_hand * 1e3
-@printf "  C  NSEBase.dot (FTField)        : %7.3f ms\n"  t_nse  * 1e3
+@printf "  C  ReSolverFlowsBase.dot (FTField)        : %7.3f ms\n"  t_nse  * 1e3
 @printf "  ratio C/A : %.3f\n"  (t_nse / t_cart)
 @printf "  ratio C/B : %.3f\n"  (t_nse / t_hand)
 
 println("\n── ProjectedField dot  (M=$M, Nx=$Nx, Nz=$Nz, Nt=$Nt) ─────────────────")
 t_proj_hand = @belapsed dot_proj_handwritten($pa, $pb)
-t_proj_nse  = @belapsed dot_proj_nsebase($pa, $pb)
+t_proj_nse  = @belapsed dot_proj_ReSolverFlowsBase($pa, $pb)
 @printf "  A  hand-written split loop          : %7.3f ms\n"  t_proj_hand * 1e3
-@printf "  B  NSEBase.dot (ProjectedField)     : %7.3f ms\n"  t_proj_nse  * 1e3
+@printf "  B  ReSolverFlowsBase.dot (ProjectedField)     : %7.3f ms\n"  t_proj_nse  * 1e3
 @printf "  ratio B/A : %.3f\n"  (t_proj_nse / t_proj_hand)
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -212,7 +212,7 @@ println("\n── shift!(FTField)  (Nx=$Nx, Ny=$Ny, Nz=$Nz, Nt=$Nt) ────
 t_shift_nse  = @belapsed shift!($u2, $SHIFTS)
 t_shift_hand = @belapsed shift_handwritten!($u2, $SHIFTS)
 @printf "  A  hand-written double loop         : %7.3f ms\n"  t_shift_hand * 1e3
-@printf "  B  NSEBase.shift! (FTField)         : %7.3f ms\n"  t_shift_nse  * 1e3
+@printf "  B  ReSolverFlowsBase.shift! (FTField)         : %7.3f ms\n"  t_shift_nse  * 1e3
 @printf "  ratio B/A : %.3f\n"  (t_shift_nse / t_shift_hand)
 
 println("\n── normdiff with shift  (Nx=$Nx, Ny=$Ny, Nz=$Nz, Nt=$Nt) ─────────────")

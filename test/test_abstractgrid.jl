@@ -67,7 +67,7 @@
         #   dim 2 (rfft, ORDER[1]) : halved   → (8 >> 1) + 1 = 5
         #   dim 3 (signed FFT)     : unchanged → 6
         g = BareGrid()
-        @test NSEBase.transform_size(g) === (4, 5, 6)
+        @test ReSolverFlowsBase.transform_size(g) === (4, 5, 6)
     end
 
     @testset "fft_norm: product over FFT dims" begin
@@ -75,7 +75,7 @@
         # in `FFT_DIMS_ORDER` order — used to scale forward transforms.
         # For BareGrid with ORDER=(2,3): (size(g,2), size(g,3)) = (8, 6).
         g = BareGrid()
-        @test NSEBase.fft_norm(g) === (8, 6)
+        @test ReSolverFlowsBase.fft_norm(g) === (8, 6)
     end
 
     @testset "to_storage_order: AXES storage order" begin
@@ -86,23 +86,23 @@
         struct PermGrid <: AbstractGrid{Float64, 4, (2, 1, 3, 4), (2, 3, 4)} end
         Base.size(::PermGrid) = (4, 8, 6, 10)
 
-        @test NSEBase.to_storage_order((:A, :B, :C, :D), PermGrid()) ===
+        @test ReSolverFlowsBase.to_storage_order((:A, :B, :C, :D), PermGrid()) ===
               (:B, :A, :C, :D)
 
         # A grid without time drops the fourth logical coordinate while keeping
         # the stored dimensions in array order.
-        @test NSEBase.to_storage_order((:X, :Y, :Z, :T), BareGrid()) ===
+        @test ReSolverFlowsBase.to_storage_order((:X, :Y, :Z, :T), BareGrid()) ===
               (:Y, :X, :Z)
 
         # Missing coordinates may appear before the end of AXES.  This grid has
         # no z coordinate, but does have time stored in array dim 3, so the
         # storage-order tuple is (y, x, t).
         struct SpaceTimeGrid <: AbstractGrid{Float64, 3, (2, 1, nothing, 3), (2, 3)} end
-        @test NSEBase.to_storage_order((:X, :Y, :Z, :T), SpaceTimeGrid()) ===
+        @test ReSolverFlowsBase.to_storage_order((:X, :Y, :Z, :T), SpaceTimeGrid()) ===
               (:Y, :X, :T)
 
         # Argument count must match the four Cartesian coordinate slots.
-        @test_throws MethodError NSEBase.to_storage_order((:A, :B), PermGrid())
+        @test_throws MethodError ReSolverFlowsBase.to_storage_order((:A, :B), PermGrid())
     end
 
     @testset "index utility functions                " begin
@@ -111,21 +111,21 @@
         I = CartesianIndex(2, 3, 4)
 
         # rfft_storage_dim: first entry of FFT_DIMS_ORDER.
-        @test NSEBase.rfft_storage_dim(g) === 2
+        @test ReSolverFlowsBase.rfft_storage_dim(g) === 2
 
         # one_or_two: 1 when the rfft-dim slot equals 1, 2 otherwise.
         # Both the grid form and the Val form must agree.
-        @test NSEBase.one_or_two(CartesianIndex(2, 1, 4), g) === 1
-        @test NSEBase.one_or_two(CartesianIndex(2, 3, 4), g) === 2
-        @test NSEBase.one_or_two(CartesianIndex(2, 1, 4), Val((2, 3))) === 1
-        @test NSEBase.one_or_two(CartesianIndex(2, 3, 4), Val((2, 3))) === 2
+        @test ReSolverFlowsBase.one_or_two(CartesianIndex(2, 1, 4), g) === 1
+        @test ReSolverFlowsBase.one_or_two(CartesianIndex(2, 3, 4), g) === 2
+        @test ReSolverFlowsBase.one_or_two(CartesianIndex(2, 1, 4), Val((2, 3))) === 1
+        @test ReSolverFlowsBase.one_or_two(CartesianIndex(2, 3, 4), Val((2, 3))) === 2
 
         # inhomogeneous_indices: dims NOT in FFT_DIMS_ORDER — only dim 1 for BareGrid.
-        @test NSEBase.inhomogeneous_indices(I, g) === (2,)
-        @test NSEBase.inhomogeneous_indices(I, Val((2, 3))) === (2,)
+        @test ReSolverFlowsBase.inhomogeneous_indices(I, g) === (2,)
+        @test ReSolverFlowsBase.inhomogeneous_indices(I, Val((2, 3))) === (2,)
 
         # homogeneous_indices: dims IN FFT_DIMS_ORDER — dims 2 and 3.
-        @test NSEBase.homogeneous_indices(I, g) === (3, 4)
+        @test ReSolverFlowsBase.homogeneous_indices(I, g) === (3, 4)
     end
 
     @testset "required interface fallthroughs throw" begin
@@ -134,13 +134,13 @@
         # them — this is the explicit contract from `abstractgrid.jl`.
         g = BareGrid()
 
-        @test_throws NSEBase.NotImplementedError points(g)
-        @test_throws NSEBase.NotImplementedError weights(g)
-        @test_throws NSEBase.NotImplementedError NSEBase.wavenumber_scale(g, 1)
-        @test_throws NSEBase.NotImplementedError growto(g, (16, 16, 12))
+        @test_throws ReSolverFlowsBase.NotImplementedError points(g)
+        @test_throws ReSolverFlowsBase.NotImplementedError weights(g)
+        @test_throws ReSolverFlowsBase.NotImplementedError ReSolverFlowsBase.wavenumber_scale(g, 1)
+        @test_throws ReSolverFlowsBase.NotImplementedError growto(g, (16, 16, 12))
 
         # `convert` to a different scalar type has no default either.
-        @test_throws NSEBase.NotImplementedError convert(Float32, g)
+        @test_throws ReSolverFlowsBase.NotImplementedError convert(Float32, g)
     end
 
     @testset "FakeGrid satisfies the interface" begin
@@ -157,14 +157,14 @@
         @test size(g) === (Nx, Ny)
         @test size(g, 1) === Nx
         @test size(g, 2) === Ny
-        @test NSEBase.transform_size(g) === (Nx, (Ny >> 1) + 1)
-        @test NSEBase.fft_norm(g) === (Ny,)
+        @test ReSolverFlowsBase.transform_size(g) === (Nx, (Ny >> 1) + 1)
+        @test ReSolverFlowsBase.fft_norm(g) === (Ny,)
 
         # weights returns a Vector of length equal to the inhomogeneous size.
         @test length(weights(g)) == Nx
 
         # wavenumber_scale on the FFT direction must agree with 2π/L.
-        @test NSEBase.wavenumber_scale(g, 2) ≈ 2π / L
+        @test ReSolverFlowsBase.wavenumber_scale(g, 2) ≈ 2π / L
 
         # points returns a tuple of broadcastable arrays sized for storage:
         x, y = points(g; dealias=false)

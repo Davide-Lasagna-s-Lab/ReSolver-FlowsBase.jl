@@ -1,7 +1,7 @@
 # Spectral field constructors for decomposed grids.
 
 """
-    NSEBase.FTField(grid::DecomposedGrid) -> FTField
+    ReSolverFlowsBase.FTField(grid::DecomposedGrid) -> FTField
 
 Construct a zero-initialised spectral field on a decomposed grid.
 
@@ -18,7 +18,7 @@ finite-difference stencils applied in spectral space — each Fourier mode
 carries a row of wall-normal coefficients, and the halo stores the ghost rows
 needed by the FD stencil at process boundaries.
 """
-NSEBase.FTField(g::DecomposedGrid{T}) where {T} =
-    NSEBase.FTField(g, HaloArrays.HaloArray{Complex{T}}(comm(g), 
+ReSolverFlowsBase.FTField(g::DecomposedGrid{T}) where {T} =
+    ReSolverFlowsBase.FTField(g, HaloArrays.HaloArray{Complex{T}}(comm(g), 
                                                         local_transform_size(g), 
                                                         nhalo(g); economic=true))

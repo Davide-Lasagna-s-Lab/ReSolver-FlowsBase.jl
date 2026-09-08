@@ -1,4 +1,4 @@
-name = "NSEBase"
+name = "ReSolverFlowsBase"
 uuid = "9778a910-ce4d-423e-92be-12991f0cf10c"
 version = "0.1.0"
 authors = ["Thomas Burton <tburton5572@gmail.com>"]

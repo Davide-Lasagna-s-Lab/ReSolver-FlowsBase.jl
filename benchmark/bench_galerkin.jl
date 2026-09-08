@@ -10,7 +10,7 @@
 
 using BenchmarkTools
 using LinearAlgebra
-using NSEBase
+using ReSolverFlowsBase
 
 include("../test/fake.jl")
 include("../test/test_grids.jl")
@@ -211,8 +211,8 @@ end
 
 # size(g) returns the storage-order sizes: (Nx, Nz, Ny)
 Base.size(g::FlippedChannelGrid) = (g.Nx, g.Nz, g.Ny)
-NSEBase.weights(g::FlippedChannelGrid)             = g.ws
-NSEBase.wavenumber_scale(::FlippedChannelGrid, ::Int) = 1.0
+ReSolverFlowsBase.weights(g::FlippedChannelGrid)             = g.ws
+ReSolverFlowsBase.wavenumber_scale(::FlippedChannelGrid, ::Int) = 1.0
 
 gf = FlippedChannelGrid(Nx, Nz, Ny)
 
@@ -231,8 +231,8 @@ println()
 println("=== Layout diagnostics (FFT dims first) ===")
 println("  FTField uf[1] shape   : ", size(parent(uf[1])))   # should be (65, 96, 97) = (rfft, z, y)
 println("  ProjectedField af shape: ", size(parent(af)))      # should be (Nm, 65, 96) = (mode, rfft, z)
-println("  homogeneous_axes(gf, af)       = ", NSEBase.homogeneous_axes(gf, af))
-println("  inhomogeneous_axes(gf, uf[1]) = ", NSEBase.inhomogeneous_axes(gf, uf[1]))
+println("  homogeneous_axes(gf, af)       = ", ReSolverFlowsBase.homogeneous_axes(gf, af))
+println("  inhomogeneous_axes(gf, uf[1]) = ", ReSolverFlowsBase.inhomogeneous_axes(gf, uf[1]))
 
 println()
 println("=== Correctness check (FFT dims first) ===")

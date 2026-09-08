@@ -13,10 +13,10 @@ using Test
 
 import MPI
 
-using NSEBase,
+using ReSolverFlowsBase,
       FDGrids
 
-const MPIExt = Base.get_extension(NSEBase, :MPIExt)
+const MPIExt = Base.get_extension(ReSolverFlowsBase, :MPIExt)
 
 MPI.Initialized() || MPI.Init()
 
@@ -97,26 +97,26 @@ end
 end
 
 @testset "points(g) returns per-rank wall-normal coords + global FFT coords   " begin
-    y, x, z, t = NSEBase.points(g)
+    y, x, z, t = ReSolverFlowsBase.points(g)
     # Wall-normal: this rank only owns its slab.
     @test vec(y) == g_parent.y[y_offset+1 : y_offset+Ny_local]
     # FFT directions: every rank holds the global coordinate array.
-    parent_y, parent_x, parent_z, parent_t = NSEBase.points(g_parent)
+    parent_y, parent_x, parent_z, parent_t = ReSolverFlowsBase.points(g_parent)
     @test x == parent_x
     @test z == parent_z
     @test t == parent_t
 end
 
 @testset "weights(g) returns per-rank slice and is cached                     " begin
-    w = NSEBase.weights(g)
+    w = ReSolverFlowsBase.weights(g)
     @test w == g_parent.ws[y_offset+1 : y_offset+Ny_local]
     # Cached: identity on repeated calls.
-    @test NSEBase.weights(g) === w
+    @test ReSolverFlowsBase.weights(g) === w
 end
 
 @testset "wavenumber_scale delegates to parent (symbol arg)                   " begin
-    @test NSEBase.wavenumber_scale(g, :x) == g_parent.α
-    @test NSEBase.wavenumber_scale(g, :z) == g_parent.β
+    @test ReSolverFlowsBase.wavenumber_scale(g, :x) == g_parent.α
+    @test ReSolverFlowsBase.wavenumber_scale(g, :z) == g_parent.β
 end
 
 @testset "nhalo / global_size are baked into the type                         " begin
@@ -129,7 +129,7 @@ end
 
 @testset "growto enlarges only FFT dimensions and re-wraps                    " begin
     target = (Nx + 2, Nz + 2, Nt + 2)  # grow x, z, t by 2 each
-    g2 = NSEBase.growto(g, target)
+    g2 = ReSolverFlowsBase.growto(g, target)
     @test g2 isa MPIExt.DecomposedGrid
     @test MPIExt.global_size(g2) == (Ny, target[1], target[2], target[3])
     @test MPIExt.nhalo(g2) == MPIExt.nhalo(g)

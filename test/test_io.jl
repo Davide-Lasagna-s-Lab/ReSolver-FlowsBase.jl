@@ -49,6 +49,6 @@
         @test b isa ProjectedField
         @test parent(b) == parent(a)
         @test modes(b) === Ψ
-        @test NSEBase.grid(b)  === g
+        @test ReSolverFlowsBase.grid(b)  === g
     end
 end

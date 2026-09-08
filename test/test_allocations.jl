@@ -73,21 +73,21 @@ end
 
 @testset "Allocation contracts                                                " begin
 
-    @testset "src/NSEBase.jl" begin
-        @test isdefined(NSEBase, :AbstractGrid)
-        @test isdefined(NSEBase, :FTField)
-        @test isdefined(NSEBase, :ProjectedNSE)
+    @testset "src/ReSolverFlowsBase.jl" begin
+        @test isdefined(ReSolverFlowsBase, :AbstractGrid)
+        @test isdefined(ReSolverFlowsBase, :FTField)
+        @test isdefined(ReSolverFlowsBase, :ProjectedNSE)
     end
 
     @testset "src/notimplementederror.jl" begin
         g = SpectralTestGrid{(4,), 1, (1, nothing, nothing, nothing), (1,)}()
         err = try
-            NSEBase.points(g)
+            ReSolverFlowsBase.points(g)
         catch e
             e
         end
 
-        @test err isa NSEBase.NotImplementedError
+        @test err isa ReSolverFlowsBase.NotImplementedError
         @test allocs_after_warmup(() -> sprint(showerror, err)) > 0
     end
 
@@ -95,22 +95,22 @@ end
         (; g) = alloc_fixture()
         values = (:x, :y, :z, :t)
 
-        @test allocs_after_warmup(() -> NSEBase.fft_storage_dims(g)) == 0
-        @test allocs_after_warmup(() -> NSEBase.inhomogeneous_storage_dims(g)) == 0
-        @test allocs_after_warmup(() -> NSEBase.to_storage_order(values, g)) == 0
+        @test allocs_after_warmup(() -> ReSolverFlowsBase.fft_storage_dims(g)) == 0
+        @test allocs_after_warmup(() -> ReSolverFlowsBase.inhomogeneous_storage_dims(g)) == 0
+        @test allocs_after_warmup(() -> ReSolverFlowsBase.to_storage_order(values, g)) == 0
         @test allocs_after_warmup(() -> size(g)) == 0
         @test allocs_after_warmup(() -> size(g, 2)) == 0
-        @test allocs_after_warmup(() -> NSEBase.transform_size(g)) == 0
-        @test allocs_after_warmup(() -> NSEBase.fft_norm(g)) == 0
-        @test allocs_after_warmup(() -> NSEBase.weights(g)) == 0
-        @test allocs_after_warmup(() -> NSEBase.wavenumber_scale(g, 2)) == 0
+        @test allocs_after_warmup(() -> ReSolverFlowsBase.transform_size(g)) == 0
+        @test allocs_after_warmup(() -> ReSolverFlowsBase.fft_norm(g)) == 0
+        @test allocs_after_warmup(() -> ReSolverFlowsBase.weights(g)) == 0
+        @test allocs_after_warmup(() -> ReSolverFlowsBase.wavenumber_scale(g, 2)) == 0
         @test allocs_after_warmup(() -> convert(Float64, g)) == 0
 
         # Coordinate arrays are newly constructed by this fixture.
-        @test allocs_after_warmup(() -> NSEBase.points(g)) > 0
-        grown = NSEBase.growto(g, (16, 12))
+        @test allocs_after_warmup(() -> ReSolverFlowsBase.points(g)) > 0
+        grown = ReSolverFlowsBase.growto(g, (16, 12))
         @test size(grown) == (size(g, 1), 16, 12)
-        @test allocs_after_warmup(() -> NSEBase.growto(g, (16, 12))) == 0
+        @test allocs_after_warmup(() -> ReSolverFlowsBase.growto(g, (16, 12))) == 0
     end
 
     @testset "src/wavenumbervector.jl" begin
@@ -121,10 +121,10 @@ end
         @test allocs_after_warmup(() -> WaveNumberVector(1, -2)) == 0
         @test allocs_after_warmup(() -> length(k)) == 0
         @test allocs_after_warmup(() -> k[2]) == 0
-        @test allocs_after_warmup(() -> NSEBase._fftw_index(-1, 6)) == 0
-        @test allocs_after_warmup(() -> NSEBase._fftw_sym_index(3, 6)) == 0
-        @test allocs_after_warmup(() -> NSEBase.to_homogeneous_indices(g, k)) == 0
-        @test allocs_after_warmup(() -> NSEBase.to_wavenumber_vector(g, storage_indices)) == 0
+        @test allocs_after_warmup(() -> ReSolverFlowsBase._fftw_index(-1, 6)) == 0
+        @test allocs_after_warmup(() -> ReSolverFlowsBase._fftw_sym_index(3, 6)) == 0
+        @test allocs_after_warmup(() -> ReSolverFlowsBase.to_homogeneous_indices(g, k)) == 0
+        @test allocs_after_warmup(() -> ReSolverFlowsBase.to_wavenumber_vector(g, storage_indices)) == 0
     end
 
     @testset "src/ftfield.jl" begin
@@ -134,19 +134,19 @@ end
         @test allocs_after_warmup(() -> FTField(g)) > 0
         @test allocs_after_warmup(() -> FTField(g, randn(ComplexF64, size(parent(u))))) > 0
         @test allocs_after_warmup(() -> parent(u)) == 0
-        @test allocs_after_warmup(() -> NSEBase.grid(u)) == 0
+        @test allocs_after_warmup(() -> ReSolverFlowsBase.grid(u)) == 0
         @test allocs_after_warmup(() -> size(u)) == 0
         @test allocs_after_warmup(() -> eltype(u)) == 0
         @test allocs_after_warmup(() -> u[1]) == 0
         @test allocs_after_warmup(() -> (u[1] = 1 + 0im)) == 0
-        @test allocs_after_warmup(() -> NSEBase.combine_indices(g, CartesianIndex(2), CartesianIndex(3, 4))) == 0
-        @test allocs_after_warmup(() -> NSEBase._average_complex(1 + 2im, 3 + 4im)) == 0
+        @test allocs_after_warmup(() -> ReSolverFlowsBase.combine_indices(g, CartesianIndex(2), CartesianIndex(3, 4))) == 0
+        @test allocs_after_warmup(() -> ReSolverFlowsBase._average_complex(1 + 2im, 3 + 4im)) == 0
         @test allocs_after_warmup(() -> (u[k, 2] = 2 - 1im)) == 0
         @test allocs_after_warmup(() -> u[k, 2]) == 0
 
         data = randn(ComplexF64, size(parent(u)))
-        @test allocs_after_warmup(() -> NSEBase.apply_symmetry!(data, Val(NSEBase.fft_storage_dims(g)))) == 0
-        @test allocs_after_warmup(() -> NSEBase.normalise_mean!(data, Val(NSEBase.fft_storage_dims(g)))) == 0
+        @test allocs_after_warmup(() -> ReSolverFlowsBase.apply_symmetry!(data, Val(ReSolverFlowsBase.fft_storage_dims(g)))) == 0
+        @test allocs_after_warmup(() -> ReSolverFlowsBase.normalise_mean!(data, Val(ReSolverFlowsBase.fft_storage_dims(g)))) == 0
 
         @test allocs_after_warmup(() -> similar(u)) > 0
         @test allocs_after_warmup(() -> copy(u)) > 0
@@ -162,7 +162,7 @@ end
         @test allocs_after_warmup(() -> Field(g, (y, x) -> y + sin(x))) > 0
         @test allocs_after_warmup(() -> Field(g, parent(u))) == 0
         @test allocs_after_warmup(() -> parent(u)) == 0
-        @test allocs_after_warmup(() -> NSEBase.grid(u)) == 0
+        @test allocs_after_warmup(() -> ReSolverFlowsBase.grid(u)) == 0
         @test allocs_after_warmup(() -> size(u)) == 0
         @test allocs_after_warmup(() -> eltype(u)) == 0
         @test allocs_after_warmup(() -> u[1]) == 0
@@ -179,7 +179,7 @@ end
         @test allocs_after_warmup(() -> VectorField(g, FTField; N=2)) > 0
         @test allocs_after_warmup(() -> VectorField(g, (y, x) -> y, (y, x) -> sin(x))) > 0
         @test allocs_after_warmup(() -> parent(q)) == 0
-        @test allocs_after_warmup(() -> NSEBase.grid(q)) == 0
+        @test allocs_after_warmup(() -> ReSolverFlowsBase.grid(q)) == 0
         @test allocs_after_warmup(() -> q[1]) == 0
         @test allocs_after_warmup(() -> size(q)) == 0
         @test allocs_after_warmup(() -> eltype(q)) == 0
@@ -188,7 +188,7 @@ end
         @test allocs_after_warmup(() -> similar(q)) > 0
         @test allocs_after_warmup(() -> copy(q)) > 0
         @test allocs_after_warmup(() -> zero(q)) > 0
-        @test_throws NSEBase.NotImplementedError NSEBase.growto(q, (16,))
+        @test_throws ReSolverFlowsBase.NotImplementedError ReSolverFlowsBase.growto(q, (16,))
     end
 
     @testset "src/fft.jl" begin
@@ -200,14 +200,14 @@ end
         cache = similar(dealias_plans.cache)
         compact = similar(parent(uhat))
 
-        @test allocs_after_warmup(() -> FFTPlans(size(u), NSEBase.fft_storage_dims(NSEBase.grid(u)), Float64; dealias=false, flags=FFTW.ESTIMATE)) > 0
-        @test allocs_after_warmup(() -> NSEBase.get_padded_size((5, 8), (2,))) == 0
-        @test allocs_after_warmup(() -> NSEBase._get_transform_size((5, 8), 2)) == 0
-        @test allocs_after_warmup(() -> NSEBase._loopblk!(compact, axes(compact), compact, axes(compact), Val(false))) == 0
-        @test allocs_after_warmup(() -> NSEBase._apply_mask!(cache)) == 0
-        @test allocs_after_warmup(() -> NSEBase._copy_to_padded!(cache, compact, (2,))) == 0
-        @test allocs_after_warmup(() -> NSEBase._copy_from_padded!(compact, cache, (2,))) == 0
-        @test allocs_after_warmup(() -> NSEBase._add_from_padded!(compact, cache, (2,))) == 0
+        @test allocs_after_warmup(() -> FFTPlans(size(u), ReSolverFlowsBase.fft_storage_dims(ReSolverFlowsBase.grid(u)), Float64; dealias=false, flags=FFTW.ESTIMATE)) > 0
+        @test allocs_after_warmup(() -> ReSolverFlowsBase.get_padded_size((5, 8), (2,))) == 0
+        @test allocs_after_warmup(() -> ReSolverFlowsBase._get_transform_size((5, 8), 2)) == 0
+        @test allocs_after_warmup(() -> ReSolverFlowsBase._loopblk!(compact, axes(compact), compact, axes(compact), Val(false))) == 0
+        @test allocs_after_warmup(() -> ReSolverFlowsBase._apply_mask!(cache)) == 0
+        @test allocs_after_warmup(() -> ReSolverFlowsBase._copy_to_padded!(cache, compact, (2,))) == 0
+        @test allocs_after_warmup(() -> ReSolverFlowsBase._copy_from_padded!(compact, cache, (2,))) == 0
+        @test allocs_after_warmup(() -> ReSolverFlowsBase._add_from_padded!(compact, cache, (2,))) == 0
         @test allocs_after_warmup(() -> plans(uhat, u; add=false, use_cache=false)) == 0
         @test allocs_after_warmup(() -> plans(parent(uhat), parent(u), false, false)) == 0
         @test allocs_after_warmup(() -> dealias_plans(uhat_dealiased, physical_dealiased; add=false)) == 0
@@ -226,8 +226,8 @@ end
         @test allocs_after_warmup(() -> ProjectedField(g, modes[1])) > 0
         @test allocs_after_warmup(() -> ProjectedField(FTField(g), modes)) > 0
         @test allocs_after_warmup(() -> parent(a)) == 0
-        @test allocs_after_warmup(() -> NSEBase.grid(a)) == 0
-        @test allocs_after_warmup(() -> NSEBase.modes(a)) == 0
+        @test allocs_after_warmup(() -> ReSolverFlowsBase.grid(a)) == 0
+        @test allocs_after_warmup(() -> ReSolverFlowsBase.modes(a)) == 0
         @test allocs_after_warmup(() -> size(a)) == 0
         @test allocs_after_warmup(() -> eltype(a)) == 0
         @test allocs_after_warmup(() -> a[1]) == 0
@@ -264,7 +264,7 @@ end
         @test allocs_after_warmup(() -> shift!(q, (0.13, -0.21))) == 0
         @test allocs_after_warmup(() -> shift!(a, (0.13, -0.21))) == 0
         @test allocs_after_warmup(() -> shift(u, (0.13, -0.21))) > 0
-        @test allocs_after_warmup(() -> NSEBase._shift_phase(NSEBase.grid(u), (0.13, -0.21), WaveNumberVector(1, -1))) == 0
+        @test allocs_after_warmup(() -> ReSolverFlowsBase._shift_phase(ReSolverFlowsBase.grid(u), (0.13, -0.21), WaveNumberVector(1, -1))) == 0
     end
 
     @testset "src/norms.jl" begin
@@ -329,17 +329,17 @@ end
         end
         @test allocs_after_warmup(() -> ddz!(out, u)) == 0
         @test allocs_after_warmup(() -> ddt!(out, u)) == 0
-        @test allocs_after_warmup(() -> NSEBase.dd!(out, u, Val(2))) == 0
-        @test allocs_after_warmup(() -> NSEBase.dd!(qout, q, Val(2))) == 0
+        @test allocs_after_warmup(() -> ReSolverFlowsBase.dd!(out, u, Val(2))) == 0
+        @test allocs_after_warmup(() -> ReSolverFlowsBase.dd!(qout, q, Val(2))) == 0
         # _inhomogeneous_laplacian! and laplacian! also go through mul! on PolynomialGrid.
         if VERSION >= v"1.11"
-            @test allocs_after_warmup(() -> NSEBase._inhomogeneous_laplacian!(out, u)) == 0
+            @test allocs_after_warmup(() -> ReSolverFlowsBase._inhomogeneous_laplacian!(out, u)) == 0
         end
-        @test allocs_after_warmup(() -> NSEBase._add_homogeneous_laplacian!(out, u)) == 0
-        @test allocs_after_warmup(() -> NSEBase._add_homogeneous_laplacian!(qout, q)) == 0
+        @test allocs_after_warmup(() -> ReSolverFlowsBase._add_homogeneous_laplacian!(out, u)) == 0
+        @test allocs_after_warmup(() -> ReSolverFlowsBase._add_homogeneous_laplacian!(qout, q)) == 0
         if VERSION >= v"1.11"
-            @test allocs_after_warmup(() -> NSEBase.laplacian!(out, u)) == 0
-            @test allocs_after_warmup(() -> NSEBase.laplacian!(qout, q)) == 0
+            @test allocs_after_warmup(() -> ReSolverFlowsBase.laplacian!(out, u)) == 0
+            @test allocs_after_warmup(() -> ReSolverFlowsBase.laplacian!(qout, q)) == 0
         end
     end
 
@@ -371,11 +371,11 @@ end
         (; g) = alloc_polynomial_fixture()
         base = (zeros(size(g, 1)), nothing)
 
-        @test allocs_after_warmup(() -> NSEBase.ncomp(CartesianPrimitive3D())) == 0
-        @test allocs_after_warmup(() -> NSEBase.cache_length(CartesianPrimitive3D(), FTField)) == 0
-        @test allocs_after_warmup(() -> NSEBase.cache_length(CartesianPrimitive3D(), Field)) == 0
-        @test allocs_after_warmup(() -> NSEBase.nonlinear_operator(CartesianPrimitive2D())) == 0
-        @test allocs_after_warmup(() -> NSEBase.linearised_operator(CartesianPrimitive2D(), AdjointDiscrete())) == 0
+        @test allocs_after_warmup(() -> ReSolverFlowsBase.ncomp(CartesianPrimitive3D())) == 0
+        @test allocs_after_warmup(() -> ReSolverFlowsBase.cache_length(CartesianPrimitive3D(), FTField)) == 0
+        @test allocs_after_warmup(() -> ReSolverFlowsBase.cache_length(CartesianPrimitive3D(), Field)) == 0
+        @test allocs_after_warmup(() -> ReSolverFlowsBase.nonlinear_operator(CartesianPrimitive2D())) == 0
+        @test allocs_after_warmup(() -> ReSolverFlowsBase.linearised_operator(CartesianPrimitive2D(), AdjointDiscrete())) == 0
         @test allocs_after_warmup(() -> construct_equations(g, 100.0, base, CartesianPrimitive2D(); flags=FFTW.ESTIMATE, dealias=false)) > 0
     end
 

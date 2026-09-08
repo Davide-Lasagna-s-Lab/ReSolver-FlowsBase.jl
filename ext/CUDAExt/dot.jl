@@ -52,7 +52,7 @@ struct DotTwoStage{A} <: DotMethod
         new{typeof(weights)}((weights, intermediate))
     end
 end
-DotTwoStage(a::GPUProjectedField) = DotTwoStage(size(a), NSEBase.fft_storage_dims(NSEBase.grid(a)), real(eltype(a)))
+DotTwoStage(a::GPUProjectedField) = DotTwoStage(size(a), ReSolverFlowsBase.fft_storage_dims(ReSolverFlowsBase.grid(a)), real(eltype(a)))
 
 """
     DotAtomic <: DotMethod
@@ -93,7 +93,7 @@ struct DotAtomic{RFFT_DIM, D, A} <: DotMethod
     function DotAtomic(a::GPUProjectedField)
         result = CUDA.zeros(real(eltype(a)), 1)
         sz = Int32.(size(a))
-        rfft_dim = NSEBase.rfft_storage_dim(NSEBase.grid(a))
+        rfft_dim = ReSolverFlowsBase.rfft_storage_dim(ReSolverFlowsBase.grid(a))
         new{rfft_dim, length(sz), typeof(result)}(result, sz, Int32(prod(sz)))
     end
 end
@@ -144,7 +144,7 @@ struct DotShared{THREADS, RFFT_DIM, D, A} <: DotMethod
     function DotShared(a::GPUProjectedField)
         pa = parent(a)
         result = CUDA.zeros(real(eltype(a)), 1)
-        rfft_dim = NSEBase.rfft_storage_dim(NSEBase.grid(a))
+        rfft_dim = ReSolverFlowsBase.rfft_storage_dim(ReSolverFlowsBase.grid(a))
         sz = Int32.(size(pa))
         nelem = Int32(prod(sz))
         kernel  = @cuda launch=false _dot_shared_kernel!(
@@ -249,7 +249,7 @@ end
 
 See also: [`reset_dot_cache!`](@ref)
 """
-function NSEBase.initialise_dot!(a::GPUProjectedField)
+function ReSolverFlowsBase.initialise_dot!(a::GPUProjectedField)
     dot_method(a)  # triggers autotune and caches result
     return nothing
 end
@@ -272,8 +272,8 @@ reset_dot_cache!(a)    # clear only the method cached for `typeof(a)`
 
 See also: [`initialise_dot!`](@ref)
 """
-NSEBase.reset_dot_cache!() = empty!(DOT_METHODS)
-NSEBase.reset_dot_cache!(::P) where {P<:GPUProjectedField} = delete!(DOT_METHODS, P)
+ReSolverFlowsBase.reset_dot_cache!() = empty!(DOT_METHODS)
+ReSolverFlowsBase.reset_dot_cache!(::P) where {P<:GPUProjectedField} = delete!(DOT_METHODS, P)
 
 
 # ------------------------------- #

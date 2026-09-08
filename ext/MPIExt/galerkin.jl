@@ -1,7 +1,7 @@
 """
-    NSEBase.project!(a, u)
+    ReSolverFlowsBase.project!(a, u)
 
-MPI-aware override of [`NSEBase.project!`](@ref) for decomposed grids.
+MPI-aware override of [`ReSolverFlowsBase.project!`](@ref) for decomposed grids.
 
 The input argument `a` is zero-ed before computations begin.
 
@@ -10,33 +10,33 @@ Each rank holds only a local slab of the inhomogeneous dimension, so
 `MPI.Allreduce!` then sums the partial modal coefficients across all ranks,
 recovering the correct global projection.
 """
-function NSEBase.project!(a::DecomposedProjectedField,
+function ReSolverFlowsBase.project!(a::DecomposedProjectedField,
                           u::DecomposedFTVectorField)
     # ! get rid of the commented stuff if I can
     # fill!(parent(a), zero(eltype(a)))
     # for n in 1:N
-    #     NSEBase._project_component!(parent(a),
+    #     ReSolverFlowsBase._project_component!(parent(a),
     #                                 parent(u[n]),
-    #                                 NSEBase.modes(a)[n],
-    #                                 NSEBase.weights(NSEBase.grid(u)),
-    #                                 Val(NSEBase.fft_storage_dims(NSEBase.grid(u))))
+    #                                 ReSolverFlowsBase.modes(a)[n],
+    #                                 ReSolverFlowsBase.weights(ReSolverFlowsBase.grid(u)),
+    #                                 Val(ReSolverFlowsBase.fft_storage_dims(ReSolverFlowsBase.grid(u))))
     # end
 
-    NSEBase.project!(a, u, NSEBase.LoopGalerkin())
+    ReSolverFlowsBase.project!(a, u, ReSolverFlowsBase.LoopGalerkin())
 
     # Sum the per-rank partial projections into the global modal coefficients
-    MPI.Allreduce!(parent(a), MPI.SUM, comm(NSEBase.grid(u)))
+    MPI.Allreduce!(parent(a), MPI.SUM, comm(ReSolverFlowsBase.grid(u)))
     return a
 end
 
 """
-    NSEBase.project(u::DecomposedFTVectorField, modes) -> ProjectedField
+    ReSolverFlowsBase.project(u::DecomposedFTVectorField, modes) -> ProjectedField
 
-Allocate a `NSEBase.ProjectedField` over `modes` and project a decomposed `u`
+Allocate a `ReSolverFlowsBase.ProjectedField` over `modes` and project a decomposed `u`
 onto it. See [`project!`](@ref) for the in-place form.
 """
-NSEBase.project(u::DecomposedFTVectorField, modes) =
-    NSEBase.project!(NSEBase.ProjectedField(NSEBase.grid(u), modes), u)
+ReSolverFlowsBase.project(u::DecomposedFTVectorField, modes) =
+    ReSolverFlowsBase.project!(ReSolverFlowsBase.ProjectedField(ReSolverFlowsBase.grid(u), modes), u)
 
 # `expand!` does not need an MPI override: it reads from `a` (which is already
 # globally consistent after `project!`) and writes to `u` locally.

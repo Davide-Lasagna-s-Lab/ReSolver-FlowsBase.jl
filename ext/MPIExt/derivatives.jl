@@ -20,7 +20,7 @@ wait_requests!(tokens::Tuple) = (foreach(wait_requests!, tokens); nothing)
 # laplacian! — blocking override for decomposed grids                #
 # ------------------------------------------------------------------ #
 """
-    NSEBase.laplacian!(out::DecomposedFTField,
+    ReSolverFlowsBase.laplacian!(out::DecomposedFTField,
                          u::DecomposedFTField,
                       mode=Forward()) -> DecomposedFTField
 
@@ -32,7 +32,7 @@ field which does not depend on the halo swap between processes, and
 the boundary computations that can only be completed after the halo
 swaps have completed.
 """
-function NSEBase.laplacian!(out::DecomposedFTField,
+function ReSolverFlowsBase.laplacian!(out::DecomposedFTField,
                               u::DecomposedFTField,
                            mode::OperatorMode=Forward())
     # start comm
@@ -63,8 +63,8 @@ function interior_laplacian!(out::DecomposedFTField,
     # santise input
     out .= zero(eltype(u))
 
-    g = NSEBase.grid(u)
-    fd_stor_dims = NSEBase.spatial_inhomogeneous_storage_dims(g)
+    g = ReSolverFlowsBase.grid(u)
+    fd_stor_dims = ReSolverFlowsBase.spatial_inhomogeneous_storage_dims(g)
 
     first_sd = first(fd_stor_dims)
     _dd_over!(out, u, g, Val(first_sd), Val(2),
@@ -88,7 +88,7 @@ function interior_laplacian!(out::DecomposedFTField,
                   accumulate=Val(true))
     end
 
-    NSEBase._add_homogeneous_laplacian!(out, u)
+    ReSolverFlowsBase._add_homogeneous_laplacian!(out, u)
     return out
 end
 
@@ -105,8 +105,8 @@ completed.
 function boundary_laplacian!(out::DecomposedFTField,
                                u::DecomposedFTField,
                             mode::OperatorMode=Forward())
-    g = NSEBase.grid(u)
-    for sd in NSEBase.spatial_inhomogeneous_storage_dims(g)
+    g = ReSolverFlowsBase.grid(u)
+    for sd in ReSolverFlowsBase.spatial_inhomogeneous_storage_dims(g)
         _dd_over!(out, u, g, Val(sd), Val(2),
                   local_boundary_ranges(g, sd), mode;
                   accumulate=Val(true))
@@ -131,23 +131,23 @@ For `STORAGE_DIM ∉ DDIMS` the code falls back to the standard
 derivative method [`dd!`](@ref) which uses the default non-distributed
 routines for the derivative computation.
 """
-function NSEBase.dd!(out::F,
+function ReSolverFlowsBase.dd!(out::F,
                        u::F,
                         ::Val{STORAGE_DIM},
                     mode::OperatorMode=Forward()) where {
     STORAGE_DIM, FFT_DIMS_ORDER, DDIMS, T, D, AXES,
     G<:DecomposedGrid{T, D, AXES, FFT_DIMS_ORDER, DDIMS},
-    F<:Union{NSEBase.FTField{G}, NSEBase.ProjectedField{G}}} # ! how do I get rid of the ProjectedField part?
+    F<:Union{ReSolverFlowsBase.FTField{G}, ReSolverFlowsBase.ProjectedField{G}}} # ! how do I get rid of the ProjectedField part?
 
-    # ! can redefine NSEBase._inhomogeneous_dd! in the extension to use _distributed_dd! or basic version depending of `STORAGE_DIM`?
+    # ! can redefine ReSolverFlowsBase._inhomogeneous_dd! in the extension to use _distributed_dd! or basic version depending of `STORAGE_DIM`?
     isnothing(STORAGE_DIM) && return out
     if STORAGE_DIM ∈ DDIMS
         _distributed_dd!(out, u, Val(STORAGE_DIM), mode)
     else
         if STORAGE_DIM ∈ FFT_DIMS_ORDER
-            NSEBase._spectral_dd!(out, u, Val(STORAGE_DIM), mode)
+            ReSolverFlowsBase._spectral_dd!(out, u, Val(STORAGE_DIM), mode)
         else
-            NSEBase._inhomogeneous_dd!(out, u, Val(STORAGE_DIM), mode)
+            ReSolverFlowsBase._inhomogeneous_dd!(out, u, Val(STORAGE_DIM), mode)
         end
     end
 
@@ -194,8 +194,8 @@ interior_dd!(out::DecomposedFTField,
                u::DecomposedFTField,
                 ::Val{STORAGE_DIM},
             mode::OperatorMode=Forward()) where {STORAGE_DIM} =
-    _dd_over!(out, u, NSEBase.grid(u), Val(STORAGE_DIM), Val(1),
-              (local_interior_range(NSEBase.grid(u), STORAGE_DIM),), mode)
+    _dd_over!(out, u, ReSolverFlowsBase.grid(u), Val(STORAGE_DIM), Val(1),
+              (local_interior_range(ReSolverFlowsBase.grid(u), STORAGE_DIM),), mode)
 
 """
     boundary_dd!(out::DecomposedFTField,
@@ -212,8 +212,8 @@ boundary_dd!(out::DecomposedFTField,
                u::DecomposedFTField,
                 ::Val{STORAGE_DIM},
             mode::OperatorMode=Forward()) where {STORAGE_DIM} =
-    _dd_over!(out, u, NSEBase.grid(u), Val(STORAGE_DIM), Val(1),
-              local_boundary_ranges(NSEBase.grid(u), STORAGE_DIM), mode)
+    _dd_over!(out, u, ReSolverFlowsBase.grid(u), Val(STORAGE_DIM), Val(1),
+              local_boundary_ranges(ReSolverFlowsBase.grid(u), STORAGE_DIM), mode)
 
 
 # ------------------------------------------------------------------ #
@@ -242,7 +242,7 @@ operator has one concrete type in the matrix kernel.
                            ranges,
                            mode::OperatorMode=Forward();
                            accumulate::Val{B}=Val(false)) where {STORAGE_DIM, ORDER, B}
-    A = NSEBase.derivative_matrix(g, STORAGE_DIM, Val(ORDER), mode)
+    A = ReSolverFlowsBase.derivative_matrix(g, STORAGE_DIM, Val(ORDER), mode)
     g_first = global_first_index(g, STORAGE_DIM)
     for rng in ranges
         isempty(rng) && continue

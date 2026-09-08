@@ -13,9 +13,9 @@ import MPI
 import FDGrids
 import HaloArrays
 
-using NSEBase
+using ReSolverFlowsBase
 
-const MPIExt = Base.get_extension(NSEBase, :MPIExt)
+const MPIExt = Base.get_extension(ReSolverFlowsBase, :MPIExt)
 
 MPI.Initialized() || MPI.Init()
 
@@ -102,11 +102,11 @@ end
 end
 
 @testset "derivative_matrix forwards to parent                                " begin
-    y_sd = NSEBase.storage_dim(g, :y)
-    x_sd = NSEBase.storage_dim(g, :x)
+    y_sd = ReSolverFlowsBase.storage_dim(g, :y)
+    x_sd = ReSolverFlowsBase.storage_dim(g, :x)
 
-    D1 = NSEBase.derivative_matrix(g, y_sd, Val(1))
-    D2 = NSEBase.derivative_matrix(g, y_sd, Val(2))
+    D1 = ReSolverFlowsBase.derivative_matrix(g, y_sd, Val(1))
+    D2 = ReSolverFlowsBase.derivative_matrix(g, y_sd, Val(2))
     @test D1 === g_parent.D₁
     @test D2 === g_parent.D₂
 end

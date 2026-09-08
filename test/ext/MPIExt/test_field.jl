@@ -11,7 +11,7 @@ using Test
 import HaloArrays
 import MPI
 
-using NSEBase,
+using ReSolverFlowsBase,
       FDGrids
 
 MPI.Initialized() || MPI.Init()
@@ -31,7 +31,7 @@ g = distributed(MockChannelGrid(Ny, Nx, Nz, Nt), base_comm;
 Ny_local = Ny ÷ nranks
 
 @testset "Field allocation: shape + storage                                   " begin
-    u = NSEBase.Field(g)
+    u = ReSolverFlowsBase.Field(g)
     @test parent(u) isa HaloArrays.HaloArray
     @test size(u) == size(g)
     @test size(u, 1) == Ny_local
@@ -39,8 +39,8 @@ Ny_local = Ny ÷ nranks
 end
 
 @testset "Field allocation with dealias=true grows FFT dimensions             " begin
-    u  = NSEBase.Field(g; dealias=false)
-    ud = NSEBase.Field(g; dealias=true)
+    u  = ReSolverFlowsBase.Field(g; dealias=false)
+    ud = ReSolverFlowsBase.Field(g; dealias=true)
     @test size(ud, 1) == size(u, 1)            # wall-normal unchanged
     @test size(ud, 2) >= size(u, 2)            # x grew (3/2-rule)
     @test size(ud, 3) >= size(u, 3)            # z grew
@@ -49,9 +49,9 @@ end
 
 @testset "Field(g, func) evaluates func only at this rank's coords            " begin
     f(y, x, z, t) = y + 10 * x  # depends on local coords
-    u = NSEBase.Field(g, f)
+    u = ReSolverFlowsBase.Field(g, f)
 
-    y, x, z, t = NSEBase.points(g)
+    y, x, z, t = ReSolverFlowsBase.points(g)
     expected = @. f(y, x, z, t)
     # `parent(u)` exposes only the interior on HaloArray storage.
     @test parent(u) ≈ expected

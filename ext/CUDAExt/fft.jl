@@ -1,12 +1,12 @@
 # Specialised constructor for FFTPlans using cuFFT for the backend.
 
 # FFT style to use
-struct cuFFTStyle <: NSEBase.FFTPlanStyle end
-NSEBase.FFTPlanStyle(::Type{<:GPUGrid})                          = cuFFTStyle()
-NSEBase.array_constructor(::cuFFTStyle)                          = CUDA.zeros
-NSEBase.transform_backend(::cuFFTStyle)                          = cuFFT
-NSEBase.construct_plan(::cuFFTStyle, args...; kwargs...)         = cuFFT.plan_rfft(args...)
-NSEBase.construct_inverse_plan(::cuFFTStyle, args...; kwargs...) = cuFFT.plan_brfft(args...)
+struct cuFFTStyle <: ReSolverFlowsBase.FFTPlanStyle end
+ReSolverFlowsBase.FFTPlanStyle(::Type{<:GPUGrid})                          = cuFFTStyle()
+ReSolverFlowsBase.array_constructor(::cuFFTStyle)                          = CUDA.zeros
+ReSolverFlowsBase.transform_backend(::cuFFTStyle)                          = cuFFT
+ReSolverFlowsBase.construct_plan(::cuFFTStyle, args...; kwargs...)         = cuFFT.plan_rfft(args...)
+ReSolverFlowsBase.construct_inverse_plan(::cuFFTStyle, args...; kwargs...) = cuFFT.plan_brfft(args...)
 
 """
     _loopblk!(dest::CuArray, ar, src::CuArray, br, ::Val{VADD})
@@ -15,7 +15,7 @@ Launch `_loopblk_kernel!` for a single contiguous block.
 `ar` and `br` are `NTuple{D, UnitRange{Int}}` - constructed on the host,
 never passed to the device.
 """
-@inline function NSEBase._loopblk!(dest::CuArray,
+@inline function ReSolverFlowsBase._loopblk!(dest::CuArray,
                                      ar::NTuple{D},
                                     src::CuArray,
                                      br::NTuple{D},

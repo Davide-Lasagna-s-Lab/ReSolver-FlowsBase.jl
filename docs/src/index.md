@@ -1,6 +1,6 @@
-# NSEBase.jl
+# ReSolverFlowsBase.jl
 
-**NSEBase** is a Julia package providing the shared spectral-field infrastructure
+**ReSolverFlowsBase** is a Julia package providing the shared spectral-field infrastructure
 for Navier-Stokes solvers targeting wall-bounded flows.  It defines:
 
 - a generic **grid interface** (`AbstractGrid`) that downstream packages implement
@@ -21,17 +21,17 @@ subtype implementing four required methods.
 
 ## Installation
 
-NSEBase is not yet registered. Install directly from GitHub:
+ReSolverFlowsBase is not yet registered. Install directly from GitHub:
 
 ```julia
 using Pkg
-Pkg.add(url = "https://github.com/Davide-Lasagna-s-Lab/NSEBase.jl")
+Pkg.add(url = "https://github.com/Davide-Lasagna-s-Lab/ReSolverFlowsBase.jl")
 ```
 
 ## Quick start
 
 ```julia
-using NSEBase
+using ReSolverFlowsBase
 
 # grid is provided by a downstream package (e.g. ChannelFlow.jl)
 obj = construct_equations(grid, Re, (U, nothing, nothing); flags = FFTW.MEASURE)

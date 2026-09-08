@@ -23,7 +23,7 @@
     # construct fields
     u = VectorField(g, N=1)
     a = ProjectedField(g, Ψ); a .= randn(ComplexF64, M, (Nx >> 1) + 1, Nz, Nt)
-    NSEBase.normalise_mean!(parent(NSEBase.apply_symmetry!(a)), (2, 3, 4))
+    ReSolverFlowsBase.normalise_mean!(parent(ReSolverFlowsBase.apply_symmetry!(a)), (2, 3, 4))
     ud = CUDA.cu(u)
     ad = CUDA.cu(a)
 

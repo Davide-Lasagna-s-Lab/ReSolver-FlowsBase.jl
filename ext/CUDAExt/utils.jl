@@ -1,19 +1,19 @@
 # General utilities useful throughout the module.
 
 """
-    NSEBase.show_tuning_info!(show_info::Bool)
+    ReSolverFlowsBase.show_tuning_info!(show_info::Bool)
 
 Toggle extra information when performing kernel tuning for Galerkin methods
 and dot product of `ProjectedField`.
 """
-NSEBase.show_tuning_info!(show_info::Bool) = (TUNING_INFO[] = show_info; return nothing)
+ReSolverFlowsBase.show_tuning_info!(show_info::Bool) = (TUNING_INFO[] = show_info; return nothing)
 
 """
-    NSEBase.set_tuning_samples!(no_of_samples::Int)
+    ReSolverFlowsBase.set_tuning_samples!(no_of_samples::Int)
 
 Set how many benchmark samples are taken during autotuning of CUDA kernels.
 """
-function NSEBase.set_tuning_samples!(no_of_samples::Int)
+function ReSolverFlowsBase.set_tuning_samples!(no_of_samples::Int)
     no_of_samples > 0 || throw(ArgumentError("number of samples must be larger than 0"))
     TUNING_SAMPLES[] = no_of_samples
 
@@ -48,7 +48,7 @@ Clear the `LAUNCH_PARAMS` variable. Useful when benchmarking different
 methods explicitly, or after moving to a different GPU with different
 performance characteristics.
 """
-NSEBase.reset_launch_params!() = empty!(LAUNCH_PARAMS)
+ReSolverFlowsBase.reset_launch_params!() = empty!(LAUNCH_PARAMS)
 
 """
     _linear_to_cart(idx::Int32, sz::NTuple{D, Int32}) -> CartesianIndex{D}

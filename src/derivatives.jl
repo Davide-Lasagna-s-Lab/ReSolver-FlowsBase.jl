@@ -128,7 +128,7 @@ Compute the derivative of the field `u` along the inhomogeneous
 direction using a stored differentation operator, storing the result
 in `out`.
 
-Requires `NSEBase.derivative_matrix` to be defined for input types.
+Requires `ReSolverFlowsBase.derivative_matrix` to be defined for input types.
 """
 function _inhomogeneous_dd!(out::FTField{G},
                               u::FTField{G},
@@ -189,7 +189,7 @@ not in [`fft_storage_dims`](@ref), such as wall-normal collocation directions. T
 full spatial Laplacian is the sum of this contribution and the homogeneous
 spectral contribution from [`_add_homogeneous_laplacian!`](@ref).
 
-Requires `NSEBase.derivative_matrix` to be defined for input types.
+Requires `ReSolverFlowsBase.derivative_matrix` to be defined for input types.
 """
 function _inhomogeneous_laplacian!(out::FTField{G},
                                      u::FTField{G},

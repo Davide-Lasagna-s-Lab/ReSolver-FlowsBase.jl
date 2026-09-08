@@ -27,8 +27,8 @@
         u = FTField(g)
         # FTField shape: (Ny, (Nx>>1)+1, Nz) = (5, 5, 6)
 
-        hom = NSEBase.homogeneous_axes(u)
-        inh = NSEBase.inhomogeneous_axes(u)
+        hom = ReSolverFlowsBase.homogeneous_axes(u)
+        inh = ReSolverFlowsBase.inhomogeneous_axes(u)
 
         # Two homogeneous axes: rfft (axis 2) and z (axis 3)
         @test length(hom) == 2
@@ -56,8 +56,8 @@
         u = FTField(g)
         # FTField shape: ((Nx>>1)+1, Nz, Ny) = (5, 6, 5)
 
-        hom = NSEBase.homogeneous_axes(u)
-        inh = NSEBase.inhomogeneous_axes(u)
+        hom = ReSolverFlowsBase.homogeneous_axes(u)
+        inh = ReSolverFlowsBase.inhomogeneous_axes(u)
 
         # Two homogeneous axes: rfft (axis 1) and z (axis 2)
         @test length(hom) == 2

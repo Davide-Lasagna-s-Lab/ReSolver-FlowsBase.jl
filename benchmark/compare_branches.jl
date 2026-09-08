@@ -8,7 +8,7 @@
 using BenchmarkTools
 using LinearAlgebra
 using Printf
-using NSEBase
+using ReSolverFlowsBase
 using JSON
 
 include("../test/test_grids.jl")
@@ -34,8 +34,8 @@ Base.size(g::Layout2) = (g.Nx, g.Ny, g.Nz, g.Nt)
 Base.size(g::Layout3) = (g.Nx, g.Nz, g.Ny, g.Nt)
 Base.size(g::Layout4) = (g.Nx, g.Nz, g.Nt, g.Ny)
 
-NSEBase.weights(g::Union{Layout1,Layout2,Layout3,Layout4}) = g.ws
-NSEBase.wavenumber_scale(::Union{Layout1,Layout2,Layout3,Layout4}, ::Int) = 1.0
+ReSolverFlowsBase.weights(g::Union{Layout1,Layout2,Layout3,Layout4}) = g.ws
+ReSolverFlowsBase.wavenumber_scale(::Union{Layout1,Layout2,Layout3,Layout4}, ::Int) = 1.0
 
 make_grid(::Type{Layout1}, Ny, Nx, Nz, Nt) = Layout1(Ny, Nx, Nz, Nt, ones(Ny))
 make_grid(::Type{Layout2}, Ny, Nx, Nz, Nt) = Layout2(Nx, Ny, Nz, Nt, ones(Ny))

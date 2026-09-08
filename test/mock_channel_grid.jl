@@ -8,7 +8,7 @@
 #   - Three FFT directions (`:x`, `:z`, `:t` -> storage dims 2, 3, 4)
 #   - Wall-normal finite-difference operators `D₁`, `D₂` supplied by FDGrids
 #
-# It is intentionally minimal: only the NSEBase + MPIExt parent-grid
+# It is intentionally minimal: only the ReSolverFlowsBase + MPIExt parent-grid
 # hooks needed by `distributed(...)` are implemented. The decomposed test
 # subject is always
 # `distributed(g, comm; decomposed_physical_dims=(:y,), nprocesses=..., nhalo=...)`.
@@ -30,8 +30,8 @@ Single-domain mock channel grid. `S = (Nx, Ny, Nz, Nt)` follows the
 production physical-coordinate order; `Base.size(grid)` permutes it into
 `(Ny, Nx, Nz, Nt)` storage order via `to_storage_order`.
 
-The grid subtypes `NSEBase.AbstractGrid` *directly* (no abstract
-intermediate) so that NSEBase's specificity rules for `storage_dim` etc.
+The grid subtypes `ReSolverFlowsBase.AbstractGrid` *directly* (no abstract
+intermediate) so that ReSolverFlowsBase's specificity rules for `storage_dim` etc.
 resolve unambiguously.
 
 Fields:
@@ -41,7 +41,7 @@ Fields:
 - `α`, `β`: streamwise and spanwise wavenumber scales
 """
 struct MockChannelGrid{S, T, D1<:AbstractMatrix{T}, D2<:AbstractMatrix{T}, V<:AbstractVector{T}} <:
-       NSEBase.AbstractGrid{T, 4, MOCK_AXES, MOCK_FFT_ORDER}
+       ReSolverFlowsBase.AbstractGrid{T, 4, MOCK_AXES, MOCK_FFT_ORDER}
     y  :: V
     ws :: V
     D₁ :: D1
@@ -64,7 +64,7 @@ end
 
 # `S = (Nx, Ny, Nz, Nt)` is in physical-coordinate order; `to_storage_order`
 # permutes it into storage-axis order `(Ny, Nx, Nz, Nt)` per `MOCK_AXES`.
-Base.size(g::MockChannelGrid{S}) where {S} = NSEBase.to_storage_order(S, g)
+Base.size(g::MockChannelGrid{S}) where {S} = ReSolverFlowsBase.to_storage_order(S, g)
 
 """
     MockChannelGrid(Ny, Nx, Nz, Nt; T=Float64, stencil_width=3)
@@ -83,16 +83,16 @@ function MockChannelGrid(Ny::Int, Nx::Int, Nz::Int, Nt::Int;
 end
 
 # ------------------------------------------------------------------ #
-# NSEBase grid interface                                             #
+# ReSolverFlowsBase grid interface                                             #
 # ------------------------------------------------------------------ #
 
 # Broadcast-shape coordinate arrays in storage-dim order: y varies along
 # storage dim 1, x along 2, z along 3, t along 4.
-function NSEBase.points(g::MockChannelGrid{S, T}; dealias::Bool=false) where {S, T}
+function ReSolverFlowsBase.points(g::MockChannelGrid{S, T}; dealias::Bool=false) where {S, T}
     Nx, Ny, Nz, Nt = S
     if dealias
-        padded_storage_size = NSEBase.get_padded_size(size(g),
-                                                       NSEBase.fft_storage_dims(g))
+        padded_storage_size = ReSolverFlowsBase.get_padded_size(size(g),
+                                                       ReSolverFlowsBase.fft_storage_dims(g))
         Nx_eff = padded_storage_size[MOCK_AXES[1]]
         Nz_eff = padded_storage_size[MOCK_AXES[3]]
         Nt_eff = padded_storage_size[MOCK_AXES[4]]
@@ -111,11 +111,11 @@ function NSEBase.points(g::MockChannelGrid{S, T}; dealias::Bool=false) where {S,
 end
 
 # Quadrature weights for the single inhomogeneous (wall-normal) dimension.
-NSEBase.weights(g::MockChannelGrid) = g.ws
+ReSolverFlowsBase.weights(g::MockChannelGrid) = g.ws
 
-# Wavenumber scales for the three FFT-transformed directions. NSEBase
+# Wavenumber scales for the three FFT-transformed directions. ReSolverFlowsBase
 # expects storage-dim integers here.
-NSEBase.wavenumber_scale(g::MockChannelGrid, storage_dim::Int) =
+ReSolverFlowsBase.wavenumber_scale(g::MockChannelGrid, storage_dim::Int) =
     storage_dim == MOCK_AXES[1] ? g.α :               # x -> dim 2
     storage_dim == MOCK_AXES[3] ? g.β :               # z -> dim 3
     storage_dim == MOCK_AXES[4] ? one(eltype(g.y)) :  # t -> dim 4 (period 2π)
@@ -131,7 +131,7 @@ Base.convert(::Type{T}, g::MockChannelGrid{S}) where {S, T<:Real} =
 
 # Allow resizing the homogeneous directions (FFT dims). The wall-normal
 # data is preserved; only `S` changes.
-function NSEBase.growto(g::MockChannelGrid{S, T},
+function ReSolverFlowsBase.growto(g::MockChannelGrid{S, T},
                         target_size::NTuple{3, Int}) where {S, T}
     _, Ny, _, _ = S
     Nx, Nz, Nt = target_size
@@ -149,7 +149,7 @@ end
 # a finite-difference direction here; the FFT directions never call this
 # hook.
 
-function NSEBase.derivative_matrix(g::MockChannelGrid,
+function ReSolverFlowsBase.derivative_matrix(g::MockChannelGrid,
                                     ::Integer,
                                     ::Val{ORDER},
                                     ::Forward) where {ORDER}
@@ -159,7 +159,7 @@ function NSEBase.derivative_matrix(g::MockChannelGrid,
     return A
 end
 
-function NSEBase.derivative_matrix(g::MockChannelGrid,
+function ReSolverFlowsBase.derivative_matrix(g::MockChannelGrid,
                                     ::Integer,
                                     ::Val{ORDER},
                                     ::AdjointDiscrete) where {ORDER}
@@ -191,7 +191,7 @@ end
 # import HaloArrays
 # import LinearAlgebra
 # import MPI
-# import NSEBase
+# import ReSolverFlowsBase
 
 # """
 #     distributed_mock(Ny, Nx, Nz, Nt, comm; nhalo=(1,), T=Float64,
@@ -200,7 +200,7 @@ end
 #                      stencil_width=3) -> DecomposedGrid
 
 # Build a `MockChannelGrid` and wrap it with
-# `NSEBase.distributed(...)` along the wall-normal `:y` direction.
+# `ReSolverFlowsBase.distributed(...)` along the wall-normal `:y` direction.
 # """
 # function distributed_mock(Ny::Int, Nx::Int, Nz::Int, Nt::Int, comm;
 #                           nhalo = (1,),
@@ -213,7 +213,7 @@ end
 #     nhalo_tuple = nhalo isa Integer ?
 #         ntuple(_ -> Int(nhalo), length(decomposed_physical_dims)) :
 #         nhalo
-#     return NSEBase.distributed(parent, comm;
+#     return ReSolverFlowsBase.distributed(parent, comm;
 #                                      decomposed_physical_dims = decomposed_physical_dims,
 #                                      nprocesses = nprocesses,
 #                                      nhalo = nhalo_tuple)

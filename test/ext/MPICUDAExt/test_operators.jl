@@ -6,7 +6,7 @@ import MPI
 import FDGrids
 import CUDA
 
-using NSEBase
+using ReSolverFlowsBase
 
 include("../../mock_channel_grid.jl")
 

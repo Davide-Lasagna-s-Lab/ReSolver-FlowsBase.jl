@@ -54,8 +54,8 @@ project!(a, u, ProjectShared(a, u))
 ```
 """
 struct ProjectShared{WS_SZ} <: ProjectMethod
-    ProjectShared(a::NSEBase.ProjectedField, ::NSEBase.VectorField) =
-        new{map(Int32, size(NSEBase.weights(NSEBase.grid(a))))}()
+    ProjectShared(a::ReSolverFlowsBase.ProjectedField, ::ReSolverFlowsBase.VectorField) =
+        new{map(Int32, size(ReSolverFlowsBase.weights(ReSolverFlowsBase.grid(a))))}()
 end
 
 # TODO: implement these and benchmark
@@ -123,14 +123,14 @@ function autotune_project(a, u)
 
     # Warmup all candidates - triggers compilation
     for method in candidates
-        NSEBase.project!(a, u, method)
+        ReSolverFlowsBase.project!(a, u, method)
     end
     CUDA.synchronize()
 
     # Time each candidate
     times = map(candidates) do method
         minimum(1:TUNING_SAMPLES[]) do _
-            CUDA.@elapsed NSEBase.project!(a, u, method)
+            CUDA.@elapsed ReSolverFlowsBase.project!(a, u, method)
         end
     end
 
@@ -163,7 +163,7 @@ end
 
 See also: [`reset_project_cache!`](@ref)
 """
-function NSEBase.initialise_project!(a, u)
+function ReSolverFlowsBase.initialise_project!(a, u)
     project_method(a, u)
     return nothing
 end
@@ -186,8 +186,8 @@ reset_project_cache!(a, u) # clear only the method cached for `(typeof(a), typeo
 
 See also: [`initialise_project!`](@ref)
 """
-NSEBase.reset_project_cache!() = empty!(PROJECT_METHODS)
-NSEBase.reset_project_cache!(::P, ::V) where {P, V} = delete!(PROJECT_METHODS, (P, V))
+ReSolverFlowsBase.reset_project_cache!() = empty!(PROJECT_METHODS)
+ReSolverFlowsBase.reset_project_cache!(::P, ::V) where {P, V} = delete!(PROJECT_METHODS, (P, V))
 
 
 # ---------------------------- #
@@ -225,8 +225,8 @@ project!(a, u) # autotune optimal method and cache for later use, returns `a`
 See also: [`initialise_project!`](@ref), [`ProjectLoop`](@ref),
 [`ProjectShared`](@ref)
 """ # TODO: define GPUVectorFTField for this dispatch, this permits Field types to be passed
-NSEBase.project!(a::GPUProjectedField,
-                 u::GPUVectorField) = NSEBase.project!(a, u, project_method(a, u))
+ReSolverFlowsBase.project!(a::GPUProjectedField,
+                 u::GPUVectorField) = ReSolverFlowsBase.project!(a, u, project_method(a, u))
 
 """
     project!(a::GPUProjectedField, u::GPUVectorField{N}, method::ProjectMethod) -> a
@@ -253,7 +253,7 @@ method = ProjectLoop(a, u)
 project!(a, u, method)
 ```
 """
-NSEBase.project!(a, u, method::ProjectMethod) = _project!(a, u, method)
+ReSolverFlowsBase.project!(a, u, method::ProjectMethod) = _project!(a, u, method)
 
 """
     _project!(a::GPUProjectedField, u::GPUVectorField, ::ProjectLoop) -> a
@@ -265,7 +265,7 @@ function _project!(a, u, ::ProjectLoop)
     sz    = map(Int32, size(a))
     nelem = Int32(prod(sz))
 
-    kernel_args = (a, NSEBase.modes(a), u, NSEBase.weights(NSEBase.grid(a)), sz, nelem)
+    kernel_args = (a, ReSolverFlowsBase.modes(a), u, ReSolverFlowsBase.weights(ReSolverFlowsBase.grid(a)), sz, nelem)
     nthreads = _get_launch_params(_project_loop_kernel!, kernel_args...)
     @cuda threads=nthreads blocks=Int32(cld(nelem, nthreads)) _project_loop_kernel!(kernel_args...)
 
@@ -282,9 +282,9 @@ function _project!(a, u, ::ProjectShared{WS_SZ}) where {WS_SZ}
     sz    = map(Int32, size(a))
     nelem = Int32(prod(sz))
 
-    kernel_args = (a, NSEBase.modes(a), u, NSEBase.weights(NSEBase.grid(a)), sz, nelem, Val(WS_SZ))
+    kernel_args = (a, ReSolverFlowsBase.modes(a), u, ReSolverFlowsBase.weights(ReSolverFlowsBase.grid(a)), sz, nelem, Val(WS_SZ))
     nthreads = _get_launch_params(_project_shared_kernel!, kernel_args...)
-    shmem_bytes = length(NSEBase.weights(NSEBase.grid(u)))*sizeof(real(eltype(a)))
+    shmem_bytes = length(ReSolverFlowsBase.weights(ReSolverFlowsBase.grid(u)))*sizeof(real(eltype(a)))
     @cuda threads=nthreads blocks=Int32(cld(nelem, nthreads)) shmem=shmem_bytes _project_shared_kernel!(kernel_args...)
 
     return a
@@ -300,9 +300,9 @@ end
 GPU kernel: compute projection for each element of `a` on each thread using loops,
 which are statically unrolled.
 """
-function _project_loop_kernel!(a::NSEBase.ProjectedField,
+function _project_loop_kernel!(a::ReSolverFlowsBase.ProjectedField,
                            modes::NTuple,
-                               u::NSEBase.VectorField{N},
+                               u::ReSolverFlowsBase.VectorField{N},
                               ws::CuDeviceArray,
                               sz::NTuple,
                            nelem::Int32) where {N}
@@ -310,7 +310,7 @@ function _project_loop_kernel!(a::NSEBase.ProjectedField,
     idx > nelem && return nothing
 
     # get grid
-    g = NSEBase.grid(u)
+    g = ReSolverFlowsBase.grid(u)
 
     # get cartesian index
     I = _linear_to_cart(idx, sz)
@@ -319,10 +319,10 @@ function _project_loop_kernel!(a::NSEBase.ProjectedField,
     # each thread computes the full inner reduction for its index
     acc = zero(eltype(a))
     for n in 1:N
-        for Inh in CartesianIndices(NSEBase.inhomogeneous_axes(u[n]))
+        for Inh in CartesianIndices(ReSolverFlowsBase.inhomogeneous_axes(u[n]))
             # Inh_int32 = map(Int32, Tuple(Inh))
-            J = CartesianIndex(      NSEBase.combine_indices(g, Inh, CartesianIndex(Base.tail(Tuple(I))))...)
-            K = CartesianIndex(I[1], NSEBase.combine_indices(g, Inh, CartesianIndex(Base.tail(Tuple(I))))...)
+            J = CartesianIndex(      ReSolverFlowsBase.combine_indices(g, Inh, CartesianIndex(Base.tail(Tuple(I))))...)
+            K = CartesianIndex(I[1], ReSolverFlowsBase.combine_indices(g, Inh, CartesianIndex(Base.tail(Tuple(I))))...)
             acc += ws[Inh]*dot(modes[n][K], u[n][J])
         end
     end
@@ -339,9 +339,9 @@ GPU kernel: compute projection for each element of `a` on each thread using loop
 which are statically unrolled. The quadrature weights are assigned to static shared
 memory to try to optimise global memory reads.
 """
-function _project_shared_kernel!(a::NSEBase.ProjectedField,
+function _project_shared_kernel!(a::ReSolverFlowsBase.ProjectedField,
                              modes::NTuple,
-                                 u::NSEBase.VectorField{N},
+                                 u::ReSolverFlowsBase.VectorField{N},
                                 ws::CuDeviceArray,
                                 sz::NTuple,
                              nelem::Int32,
@@ -362,7 +362,7 @@ function _project_shared_kernel!(a::NSEBase.ProjectedField,
     idx > nelem && return nothing
 
     # get grid
-    g = NSEBase.grid(u)
+    g = ReSolverFlowsBase.grid(u)
 
     # get cartesian index
     I = _linear_to_cart(idx, sz)
@@ -370,9 +370,9 @@ function _project_shared_kernel!(a::NSEBase.ProjectedField,
     # each thread computes the full inner reduction for its index
     acc = zero(eltype(a))
     for n in 1:N
-        for Inh in CartesianIndices(NSEBase.inhomogeneous_axes(u[n]))
-            J = CartesianIndex(      NSEBase.combine_indices(g, Inh, CartesianIndex(Base.tail(Tuple(I))))...)
-            K = CartesianIndex(I[1], NSEBase.combine_indices(g, Inh, CartesianIndex(Base.tail(Tuple(I))))...)
+        for Inh in CartesianIndices(ReSolverFlowsBase.inhomogeneous_axes(u[n]))
+            J = CartesianIndex(      ReSolverFlowsBase.combine_indices(g, Inh, CartesianIndex(Base.tail(Tuple(I))))...)
+            K = CartesianIndex(I[1], ReSolverFlowsBase.combine_indices(g, Inh, CartesianIndex(Base.tail(Tuple(I))))...)
             acc += shmem[Inh]*dot(modes[n][K], u[n][J])
         end
     end
@@ -381,9 +381,9 @@ function _project_shared_kernel!(a::NSEBase.ProjectedField,
     return nothing
 end
 
-function _project_tiled_kernel!(a::NSEBase.ProjectedField,
+function _project_tiled_kernel!(a::ReSolverFlowsBase.ProjectedField,
                             modes::NTuple,
-                                u::NSEBase.VectorField{N},
+                                u::ReSolverFlowsBase.VectorField{N},
                                ws::CuDeviceArray,
                                sz::NTuple,
                             nelem::Int32,
@@ -398,13 +398,13 @@ function _project_tiled_kernel!(a::NSEBase.ProjectedField,
     idx = (blockIdx().x - 1i32)*blockDim().x + threadIdx().x
     active = idx <= nelem
 
-    g = NSEBase.grid(u)
+    g = ReSolverFlowsBase.grid(u)
     I = active ? _linear_to_cart(idx, sz) : _linear_to_cart(1i32, sz)  # dummy for inactive threads
 
     acc = zero(eltype(a))
 
     # assumes all modes n share the same reference quadrature shape as `ws`
-    ax = NSEBase.homogeneous_axes(u[1])
+    ax = ReSolverFlowsBase.homogeneous_axes(u[1])
     cart = CartesianIndices(ax)
     @assert length(cart) == nw  # sanity check outside hot path ideally
 
@@ -423,8 +423,8 @@ function _project_tiled_kernel!(a::NSEBase.ProjectedField,
             for lidx in tile_start:tile_end
                 Inh = cart[lidx]
                 w = @inbounds shmem[lidx - tile_start + 1i32]
-                J = CartesianIndex(NSEBase.combine_indices(g, Inh, Base.tail(I)))
-                K = CartesianIndex(I[1], NSEBase.combine_indices(g, Inh, Base.tail(I))...)
+                J = CartesianIndex(ReSolverFlowsBase.combine_indices(g, Inh, Base.tail(I)))
+                K = CartesianIndex(I[1], ReSolverFlowsBase.combine_indices(g, Inh, Base.tail(I))...)
                 for n in 1:N
                     @inbounds acc += w * dot(modes[n][K], u[n][J])
                 end
@@ -441,9 +441,9 @@ function _project_tiled_kernel!(a::NSEBase.ProjectedField,
     return nothing
 end
 
-function _project_tree_kernel!(a::NSEBase.ProjectedField,
+function _project_tree_kernel!(a::ReSolverFlowsBase.ProjectedField,
                            modes::NTuple,
-                               u::NSEBase.VectorField{N},
+                               u::ReSolverFlowsBase.VectorField{N},
                               ws::CuDeviceArray,
                               sz::NTuple,
                            nelem::Int32,
@@ -456,10 +456,10 @@ function _project_tree_kernel!(a::NSEBase.ProjectedField,
     idx = (blockIdx().x - 1i32) * groups_per_block + group_in_block + 1i32
     active = idx <= nelem
 
-    g = NSEBase.grid(u)
+    g = ReSolverFlowsBase.grid(u)
     I = active ? _linear_to_cart(idx, sz) : _linear_to_cart(1i32, sz)
 
-    ax = NSEBase.homogeneous_axes(u[1])
+    ax = ReSolverFlowsBase.homogeneous_axes(u[1])
     cart = CartesianIndices(ax)
     nw = length(cart)
 
@@ -470,8 +470,8 @@ function _project_tree_kernel!(a::NSEBase.ProjectedField,
         for lidx in lane:G:nw
             Inh = cart[lidx]
             w = @inbounds ws[lidx]
-            J = CartesianIndex(NSEBase.combine_indices(g, Inh, Base.tail(I)))
-            K = CartesianIndex(I[1], NSEBase.combine_indices(g, Inh, Base.tail(I))...)
+            J = CartesianIndex(ReSolverFlowsBase.combine_indices(g, Inh, Base.tail(I)))
+            K = CartesianIndex(I[1], ReSolverFlowsBase.combine_indices(g, Inh, Base.tail(I))...)
             for n in 1:N
                 @inbounds partial += w * dot(modes[n][K], u[n][J])
             end
@@ -572,14 +572,14 @@ function autotune_expand(u, a)
 
     # Warmup all candidates - triggers compilation
     for method in candidates
-        NSEBase.expand!(u, a, method)
+        ReSolverFlowsBase.expand!(u, a, method)
     end
     CUDA.synchronize()
 
     # Time each candidate
     times = map(candidates) do method
         minimum(1:TUNING_SAMPLES[]) do _
-            CUDA.@elapsed NSEBase.expand!(u, a, method)
+            CUDA.@elapsed ReSolverFlowsBase.expand!(u, a, method)
         end
     end
 
@@ -612,7 +612,7 @@ end
 
 See also: [`reset_expand_cache!`](@ref)
 """
-function NSEBase.initialise_expand!(u, a)
+function ReSolverFlowsBase.initialise_expand!(u, a)
     expand_method(u, a)
     return nothing
 end
@@ -635,8 +635,8 @@ reset_expand_cache!(u, a) # clear only the method cached for (typeof(u), typeof(
 
 See also: [`initialise_expand!`](@ref)
 """
-NSEBase.reset_expand_cache!() = empty!(EXPAND_METHODS)
-NSEBase.reset_expand_cache!(::V, ::P) where {V, P} = delete!(EXPAND_METHODS, (V, P))
+ReSolverFlowsBase.reset_expand_cache!() = empty!(EXPAND_METHODS)
+ReSolverFlowsBase.reset_expand_cache!(::V, ::P) where {V, P} = delete!(EXPAND_METHODS, (V, P))
 
 
 # --------------------------- #
@@ -674,8 +674,8 @@ expand!(u, a) # autotune optimal method and cache for later use, returns `u`
 
 See also: [`initialise_expand!`](@ref), [`ExpandModal`](@ref)
 """
-NSEBase.expand!(u::GPUVectorField, a::GPUProjectedField) =
-    NSEBase.expand!(u, a, expand_method(u, a))
+ReSolverFlowsBase.expand!(u::GPUVectorField, a::GPUProjectedField) =
+    ReSolverFlowsBase.expand!(u, a, expand_method(u, a))
 
 """
     expand!(u::GPUVectorField, a::GPUProjectedField, method::ExpandMethod) -> u
@@ -701,7 +701,7 @@ method = ExpandModal(u, a)
 expand!(u, a, method)
 ```
 """
-NSEBase.expand!(u, a, method::ExpandMethod) =
+ReSolverFlowsBase.expand!(u, a, method::ExpandMethod) =
     _expand!(u, a, method)
 
 """
@@ -716,12 +716,12 @@ or [_expand_modal_2_kernel](@ref). With `over_vector=true` the vector field
 component is included in the parallel execution of the kernel, and
 `over_vector=false` means that the kernel loops the vector field components.
 """
-function _expand!(u::NSEBase.VectorField{N}, a, ::ExpandModal{true}) where {N}
+function _expand!(u::ReSolverFlowsBase.VectorField{N}, a, ::ExpandModal{true}) where {N}
     sz               = map(Int32, size(u[1]))
     nelem::Int32     = prod(sz)
     nelem_vec::Int32 = N*nelem
 
-    kernel_args = (u, a, NSEBase.modes(a), sz, nelem, nelem_vec)
+    kernel_args = (u, a, ReSolverFlowsBase.modes(a), sz, nelem, nelem_vec)
     nthreads = _get_launch_params(_expand_modal_1_kernel!, kernel_args...)
     @cuda threads=nthreads blocks=Int32(cld(nelem_vec, nthreads)) _expand_modal_1_kernel!(kernel_args...)
 
@@ -732,7 +732,7 @@ function _expand!(u, a, ::ExpandModal{false})
     sz           = map(Int32, size(u[1]))
     nelem::Int32 = prod(sz)
 
-    kernel_args = (u, a, NSEBase.modes(a), sz, nelem)
+    kernel_args = (u, a, ReSolverFlowsBase.modes(a), sz, nelem)
     nthreads = _get_launch_params(_expand_modal_2_kernel!, kernel_args...)
     @cuda threads=nthreads blocks=Int32(cld(nelem, nthreads)) _expand_modal_2_kernel!(kernel_args...)
 
@@ -760,7 +760,7 @@ function _expand_modal_1_kernel!(u, a, modes, sz, nelem, nelem_vec)
 
     acc = zero(eltype(a))
     for m in axes(a, 1)
-        J = CartesianIndex(m, NSEBase.homogeneous_indices(I, NSEBase.grid(u))...)
+        J = CartesianIndex(m, ReSolverFlowsBase.homogeneous_indices(I, ReSolverFlowsBase.grid(u))...)
         K = CartesianIndex(m, I)
         @inbounds acc += a[J]*modes[n][K]
     end
@@ -775,7 +775,7 @@ end
 GPU kernel: compute the expansion of the coefficients `a` into a vectorfield `u`,
 treating each vector field component of `u` serially on each thread.
 """
-function _expand_modal_2_kernel!(u::NSEBase.VectorField{N}, a, modes, sz, nelem) where {N}
+function _expand_modal_2_kernel!(u::ReSolverFlowsBase.VectorField{N}, a, modes, sz, nelem) where {N}
     idx = (blockIdx().x - 1i32)*blockDim().x + threadIdx().x
     idx > nelem && return nothing
 
@@ -784,7 +784,7 @@ function _expand_modal_2_kernel!(u::NSEBase.VectorField{N}, a, modes, sz, nelem)
     for n in 1:N
         acc = zero(eltype(a))
         for m in axes(a, 1)
-            J = CartesianIndex(m, NSEBase.homogeneous_indices(I, NSEBase.grid(u))...)
+            J = CartesianIndex(m, ReSolverFlowsBase.homogeneous_indices(I, ReSolverFlowsBase.grid(u))...)
             K = CartesianIndex(m, I)
             @inbounds acc += a[J]*modes[n][K]
         end

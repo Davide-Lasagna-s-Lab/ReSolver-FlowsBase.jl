@@ -3,17 +3,17 @@
 #
 # Verifies that `FTField(g)` on a decomposed grid:
 #   - allocates `HaloArrays.HaloArray` storage
-#   - sizes the interior to `NSEBase.transform_size(g)`
+#   - sizes the interior to `ReSolverFlowsBase.transform_size(g)`
 
 using Test
 
 import HaloArrays
 import MPI
 
-using NSEBase,
+using ReSolverFlowsBase,
       FDGrids
 
-const MPIExt = Base.get_extension(NSEBase, :MPIExt)
+const MPIExt = Base.get_extension(ReSolverFlowsBase, :MPIExt)
 
 MPI.Initialized() || MPI.Init()
 
@@ -31,15 +31,15 @@ g_halo   = distributed(g_parent, base_comm;
                         decomposed_physical_dims=(:y,), nprocesses=(nranks,), nhalo=(NHALO,))
 
 @testset "FTField on decomposed grid is HaloArray-backed                      " begin
-    uhat = NSEBase.FTField(g_halo)
+    uhat = ReSolverFlowsBase.FTField(g_halo)
     @test parent(uhat) isa HaloArrays.HaloArray
-    @test size(uhat) == NSEBase.transform_size(g_halo)
+    @test size(uhat) == ReSolverFlowsBase.transform_size(g_halo)
     @test HaloArrays.nhalo(parent(uhat)) == MPIExt.nhalo(g_halo)
     @test all(parent(uhat) .== 0)
 end
 
 @testset "FTField via convert preserves storage policy                        " begin
-    uhat = NSEBase.FTField(g_halo)
+    uhat = ReSolverFlowsBase.FTField(g_halo)
     uhat32 = similar(uhat, ComplexF32)
     @test parent(uhat32) isa HaloArrays.HaloArray
 end

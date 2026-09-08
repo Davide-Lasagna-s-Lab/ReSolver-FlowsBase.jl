@@ -1,12 +1,12 @@
-using Documenter, NSEBase
+using Documenter, ReSolverFlowsBase
 
 makedocs(
-    sitename = "NSEBase.jl",
-    modules  = [NSEBase],
+    sitename = "ReSolverFlowsBase.jl",
+    modules  = [ReSolverFlowsBase],
     authors  = "Davide Lasagna",
     format   = Documenter.HTML(
         prettyurls  = get(ENV, "CI", nothing) == "true",
-        canonical   = "https://Davide-Lasagna-s-Lab.github.io/NSEBase.jl/stable",
+        canonical   = "https://Davide-Lasagna-s-Lab.github.io/ReSolverFlowsBase.jl/stable",
     ),
     pages = [
         "Home"                    => "index.md",
@@ -18,6 +18,6 @@ makedocs(
 )
 
 deploydocs(
-    repo   = "github.com/Davide-Lasagna-s-Lab/NSEBase.jl.git",
+    repo   = "github.com/Davide-Lasagna-s-Lab/ReSolverFlowsBase.jl.git",
     target = "build",
 )

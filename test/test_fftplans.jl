@@ -10,7 +10,7 @@ Base.size(a::FFTDataWrapper) = size(a.data)
 Base.getindex(a::FFTDataWrapper, i::Int) = a.data[i]
 Base.setindex!(a::FFTDataWrapper, v, i::Int) = (a.data[i] = v)
 
-NSEBase._fft_data(a::FFTDataWrapper) = a.data
+ReSolverFlowsBase._fft_data(a::FFTDataWrapper) = a.data
 
 @testset "FFTPlans constructor                                                " begin
     for T in (Float32, Float64)
@@ -36,7 +36,7 @@ NSEBase._fft_data(a::FFTDataWrapper) = a.data
 
         # 2D, dealiased: cache matches padded transform shape
         f = FFTPlans((8, 6), (1, 2), T, dealias=true, flags=ESTIMATE)
-        pad = NSEBase.get_padded_size((8, 6), (1, 2))
+        pad = ReSolverFlowsBase.get_padded_size((8, 6), (1, 2))
         @test f.norm ≈ T(1/prod(pad))
         @test size(f.cache) == ((pad[1] >> 1) + 1, pad[2])
 
@@ -71,24 +71,24 @@ end
 @testset "Transform utilities                                                 " begin
     @testset "get_padded_size                " begin
         # single transformed dimension
-        @test NSEBase.get_padded_size((4,), (1,)) == (7,)
-        @test NSEBase.get_padded_size((6,), (1,)) == (9,)
-        @test NSEBase.get_padded_size((8,), (1,)) == (13,)
+        @test ReSolverFlowsBase.get_padded_size((4,), (1,)) == (7,)
+        @test ReSolverFlowsBase.get_padded_size((6,), (1,)) == (9,)
+        @test ReSolverFlowsBase.get_padded_size((8,), (1,)) == (13,)
 
         # untransformed dimensions are unchanged
-        @test NSEBase.get_padded_size((4, 5), (1,)) == (7, 5)
-        @test NSEBase.get_padded_size((4, 5), (2,)) == (4, 9)
+        @test ReSolverFlowsBase.get_padded_size((4, 5), (1,)) == (7, 5)
+        @test ReSolverFlowsBase.get_padded_size((4, 5), (2,)) == (4, 9)
 
         # multiple transformed dimensions
-        @test NSEBase.get_padded_size((4, 6), (1, 2))       == (7, 9)
-        @test NSEBase.get_padded_size((4, 6, 8), (1, 2, 3)) == (7, 9, 13)
-        @test NSEBase.get_padded_size((4, 5, 6), (1, 3))    == (7, 5, 9)
+        @test ReSolverFlowsBase.get_padded_size((4, 6), (1, 2))       == (7, 9)
+        @test ReSolverFlowsBase.get_padded_size((4, 6, 8), (1, 2, 3)) == (7, 9, 13)
+        @test ReSolverFlowsBase.get_padded_size((4, 5, 6), (1, 3))    == (7, 5, 9)
 
         # padded size must satisfy the 3/2 dealiasing rule for all transformed dimensions
         for s in 1:32, ndim in 1:3
             size   = ntuple(_ -> s, ndim)
             order  = ntuple(identity, ndim)
-            padded = NSEBase.get_padded_size(size, order)
+            padded = ReSolverFlowsBase.get_padded_size(size, order)
             for d in order
                 @test padded[d] >= 3s/2
             end
@@ -97,38 +97,38 @@ end
 
     @testset "_get_transform_size               " begin
         # 1D: first (and only) dimension is halved + 1
-        @test NSEBase._get_transform_size((4,), 1) == (3,)
-        @test NSEBase._get_transform_size((6,), 1) == (4,)
-        @test NSEBase._get_transform_size((8,), 1) == (5,)
+        @test ReSolverFlowsBase._get_transform_size((4,), 1) == (3,)
+        @test ReSolverFlowsBase._get_transform_size((6,), 1) == (4,)
+        @test ReSolverFlowsBase._get_transform_size((8,), 1) == (5,)
 
         # 2D: only the selected dimension changes
-        @test NSEBase._get_transform_size((4, 6), 1) == (3, 6)
-        @test NSEBase._get_transform_size((4, 6), 2) == (4, 4)
+        @test ReSolverFlowsBase._get_transform_size((4, 6), 1) == (3, 6)
+        @test ReSolverFlowsBase._get_transform_size((4, 6), 2) == (4, 4)
 
         # 3D
-        @test NSEBase._get_transform_size((4, 6, 8), 1) == (3, 6, 8)
-        @test NSEBase._get_transform_size((4, 6, 8), 2) == (4, 4, 8)
-        @test NSEBase._get_transform_size((4, 6, 8), 3) == (4, 6, 5)
+        @test ReSolverFlowsBase._get_transform_size((4, 6, 8), 1) == (3, 6, 8)
+        @test ReSolverFlowsBase._get_transform_size((4, 6, 8), 2) == (4, 4, 8)
+        @test ReSolverFlowsBase._get_transform_size((4, 6, 8), 3) == (4, 6, 5)
     end
 
     @testset "_apply_mask!                      " begin
         for sz in ((5,), (5, 6), (3, 4, 5))
             cache = randn(ComplexF64, sz...)
-            NSEBase._apply_mask!(cache)
+            ReSolverFlowsBase._apply_mask!(cache)
             @test all(iszero, cache)
         end
     end
 
     @testset "_copy_to/from_padded!, 1D         " begin
         # NTuple{1}: only the rfft dim is transformed
-        M, M_pad = 8, NSEBase.get_padded_size((8,), (1,))[1]
+        M, M_pad = 8, ReSolverFlowsBase.get_padded_size((8,), (1,))[1]
         M_spec, M_spec_pad = M ÷ 2 + 1, M_pad ÷ 2 + 1
 
         u     = randn(ComplexF64, M_spec)
         cache = zeros(ComplexF64, M_spec_pad)
 
-        NSEBase._apply_mask!(cache)
-        NSEBase._copy_to_padded!(cache, u, (1,))
+        ReSolverFlowsBase._apply_mask!(cache)
+        ReSolverFlowsBase._copy_to_padded!(cache, u, (1,))
 
         # resolved range is embedded at the low end; padding zone stays zero
         @test cache[1:M_spec] ≈ u
@@ -136,25 +136,25 @@ end
 
         # round-trip
         u2 = zeros(ComplexF64, M_spec)
-        NSEBase._copy_from_padded!(u2, cache, (1,))
+        ReSolverFlowsBase._copy_from_padded!(u2, cache, (1,))
         @test u2 ≈ u
     end
 
     @testset "_copy_to/from_padded!, 2D         " begin
         # NTuple{2}: rfft dim + one full-spectrum dim
         M, N   = 8, 6
-        M_pad, N_pad = NSEBase.get_padded_size((M, N), (1, 2))
+        M_pad, N_pad = ReSolverFlowsBase.get_padded_size((M, N), (1, 2))
         M_spec, M_spec_pad = M ÷ 2 + 1, M_pad ÷ 2 + 1
 
         u     = randn(ComplexF64, M_spec, N)
         cache = zeros(ComplexF64, M_spec_pad, N_pad)
 
-        NSEBase._apply_mask!(cache)
-        NSEBase._copy_to_padded!(cache, u, (1, 2))
+        ReSolverFlowsBase._apply_mask!(cache)
+        ReSolverFlowsBase._copy_to_padded!(cache, u, (1, 2))
 
         # round-trip
         u2 = zeros(ComplexF64, M_spec, N)
-        NSEBase._copy_from_padded!(u2, cache, (1, 2))
+        ReSolverFlowsBase._copy_from_padded!(u2, cache, (1, 2))
         @test u2 ≈ u
 
         # positive-frequency block is at the low end of each dim
@@ -171,42 +171,42 @@ end
     @testset "_copy_to/from_padded!, 3D         " begin
         # NTuple{3}: rfft dim + two full-spectrum dims
         L, M, N  = 4, 6, 8
-        L_pad, M_pad, N_pad = NSEBase.get_padded_size((L, M, N), (1, 2, 3))
+        L_pad, M_pad, N_pad = ReSolverFlowsBase.get_padded_size((L, M, N), (1, 2, 3))
         L_spec, L_spec_pad  = L ÷ 2 + 1, L_pad ÷ 2 + 1
 
         u     = randn(ComplexF64, L_spec, M, N)
         cache = zeros(ComplexF64, L_spec_pad, M_pad, N_pad)
 
-        NSEBase._apply_mask!(cache)
-        NSEBase._copy_to_padded!(cache, u, (1, 2, 3))
+        ReSolverFlowsBase._apply_mask!(cache)
+        ReSolverFlowsBase._copy_to_padded!(cache, u, (1, 2, 3))
 
         u2 = zeros(ComplexF64, L_spec, M, N)
-        NSEBase._copy_from_padded!(u2, cache, (1, 2, 3))
+        ReSolverFlowsBase._copy_from_padded!(u2, cache, (1, 2, 3))
         @test u2 ≈ u
     end
 
     @testset "_add_from_padded!, 1D             " begin
-        M, M_pad = 8, NSEBase.get_padded_size((8,), (1,))[1]
+        M, M_pad = 8, ReSolverFlowsBase.get_padded_size((8,), (1,))[1]
         M_spec, M_spec_pad = M ÷ 2 + 1, M_pad ÷ 2 + 1
 
         cache = randn(ComplexF64, M_spec_pad)
         accum = randn(ComplexF64, M_spec)
         accum0 = copy(accum)
 
-        NSEBase._add_from_padded!(accum, cache, (1,))
+        ReSolverFlowsBase._add_from_padded!(accum, cache, (1,))
         @test accum ≈ accum0 .+ cache[1:M_spec]
     end
 
     @testset "_add_from_padded!, 2D             " begin
         M, N   = 8, 6
-        M_pad, N_pad = NSEBase.get_padded_size((M, N), (1, 2))
+        M_pad, N_pad = ReSolverFlowsBase.get_padded_size((M, N), (1, 2))
         M_spec = M ÷ 2 + 1
 
         cache = randn(ComplexF64, (M_pad ÷ 2 + 1), N_pad)
         accum = randn(ComplexF64, M_spec, N)
         accum0 = copy(accum)
 
-        NSEBase._add_from_padded!(accum, cache, (1, 2))
+        ReSolverFlowsBase._add_from_padded!(accum, cache, (1, 2))
 
         # positive-frequency block
         N_pos = (N >> 1) + 1
@@ -285,7 +285,7 @@ end
 
     @testset "forward transform, 1D, dealiased  " begin
         N = 8
-        N_pad = NSEBase.get_padded_size((N,), (1,))[1]   # 13
+        N_pad = ReSolverFlowsBase.get_padded_size((N,), (1,))[1]   # 13
         u_pad = randn(Float64, N_pad)
         û = zeros(ComplexF64, N ÷ 2 + 1)
         f = FFTPlans((N,), (1,), Float64, dealias=true, flags=ESTIMATE)
@@ -300,7 +300,7 @@ end
 
     @testset "forward transform, 2D, dealiased  " begin
         M, N = 8, 6
-        M_pad, N_pad = NSEBase.get_padded_size((M, N), (1, 2))
+        M_pad, N_pad = ReSolverFlowsBase.get_padded_size((M, N), (1, 2))
         u_pad = randn(Float64, M_pad, N_pad)
         û = zeros(ComplexF64, M ÷ 2 + 1, N)
         f = FFTPlans((M, N), (1, 2), Float64, dealias=true, flags=ESTIMATE)
@@ -352,7 +352,7 @@ end
         # resolved spectral array, backward-transform to get the padded physical
         # field, then forward-transform back and verify we recover the original.
         N = 8
-        N_pad = NSEBase.get_padded_size((N,), (1,))[1]
+        N_pad = ReSolverFlowsBase.get_padded_size((N,), (1,))[1]
         f = FFTPlans((N,), (1,), Float64, dealias=true, flags=ESTIMATE)
 
         # û_init must represent a real-valued field: DC (mode 0) and Nyquist (last
@@ -419,7 +419,7 @@ end
         # corrupting û_sq[3].
 
         N     = 8
-        N_pad = NSEBase.get_padded_size((N,), (1,))[1]   # 13
+        N_pad = ReSolverFlowsBase.get_padded_size((N,), (1,))[1]   # 13
 
         # ---- dealiased ----
         f_de = FFTPlans((N,), (1,), Float64, dealias=true,  flags=ESTIMATE)
@@ -504,12 +504,12 @@ end
         plans = FFTPlans(g, dealias=false, flags=FFTW.ESTIMATE)
 
         plans(U, u)
-        @test NSEBase._fft_data(U) ≈ FFTW.rfft(raw, NSEBase.fft_storage_dims(g)) ./ prod(NSEBase.fft_norm(g))
+        @test ReSolverFlowsBase._fft_data(U) ≈ FFTW.rfft(raw, ReSolverFlowsBase.fft_storage_dims(g)) ./ prod(ReSolverFlowsBase.fft_norm(g))
 
         plans(v, U)
-        @test NSEBase._fft_data(v) ≈ raw
+        @test ReSolverFlowsBase._fft_data(v) ≈ raw
 
-        @test parent(FFT(u)) ≈ NSEBase._fft_data(U)
+        @test parent(FFT(u)) ≈ ReSolverFlowsBase._fft_data(U)
         @test parent(IFFT(U)) ≈ raw
     end
 end

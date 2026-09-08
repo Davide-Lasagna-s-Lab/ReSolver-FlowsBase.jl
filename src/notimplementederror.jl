@@ -1,6 +1,6 @@
 # Sentinel exception type for unimplemented required interface methods.
 #
-# NSEBase defines many abstract methods whose concrete implementations must be
+# ReSolverFlowsBase defines many abstract methods whose concrete implementations must be
 # provided by downstream packages (e.g. `size`, `points`, `wavenumber_scale`,
 # `weights`).  Rather than leaving such methods undefined (which would produce
 # Julia's cryptic "no matching method" message), each stub explicitly throws
@@ -11,7 +11,7 @@
 """
     NotImplementedError <: Exception
 
-Thrown by abstract interface stubs in NSEBase when a required method has not
+Thrown by abstract interface stubs in ReSolverFlowsBase when a required method has not
 been implemented by a downstream package.
 
 The exception records the name of the unimplemented method (taken from the

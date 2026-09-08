@@ -1,4 +1,4 @@
-module NSEBase
+module ReSolverFlowsBase
 
 # TODO: add benchmark scripts, profile the cartesian primitive NSE and LNSE implementations
 # TODO: @enum might be a useful way to associate spatial dimensions with value types and make code more readable

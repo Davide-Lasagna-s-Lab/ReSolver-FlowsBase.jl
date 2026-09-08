@@ -6,9 +6,9 @@ import MPI
 import FDGrids
 import CUDA
 
-using NSEBase
+using ReSolverFlowsBase
 
-CUDAExt = Base.get_extension(NSEBase, :CUDAExt)
+CUDAExt = Base.get_extension(ReSolverFlowsBase, :CUDAExt)
 
 include("../../mock_channel_grid.jl")
 

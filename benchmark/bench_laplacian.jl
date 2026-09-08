@@ -2,7 +2,7 @@
 # CartesianIndices implementation.
 #
 # The generated function below is a copy of the previous production kernel.
-# `NSEBase.add_homogeneous_laplacian!` is the current production implementation.
+# `ReSolverFlowsBase.add_homogeneous_laplacian!` is the current production implementation.
 # The benchmark is intentionally limited to the homogeneous Laplacian
 # contribution because the full laplacian! also calls the downstream
 # grid-specific _inhomogeneous_laplacian!.
@@ -18,13 +18,13 @@
 import BenchmarkTools
 import Printf
 import Random
-import NSEBase
+import ReSolverFlowsBase
 
 # ------------------------------------------------------------------ #
 # Benchmark grids                                                     #
 # ------------------------------------------------------------------ #
 
-struct TripleGrid <: NSEBase.AbstractGrid{Float64, 3, (2, 1, 3, nothing), (2, 3)}
+struct TripleGrid <: ReSolverFlowsBase.AbstractGrid{Float64, 3, (2, 1, 3, nothing), (2, 3)}
     Ny::Int
     Nx::Int
     Nz::Int
@@ -40,13 +40,13 @@ function TripleGrid(Ny::Integer, Nx::Integer, Nz::Integer;
 end
 
 Base.size(g::TripleGrid) = (g.Ny, g.Nx, g.Nz)
-NSEBase.weights(g::TripleGrid) = g.ws
-NSEBase.wavenumber_scale(g::TripleGrid, dim::Int) =
+ReSolverFlowsBase.weights(g::TripleGrid) = g.ws
+ReSolverFlowsBase.wavenumber_scale(g::TripleGrid, dim::Int) =
     dim == 2 ? g.alpha :
     dim == 3 ? g.beta :
     one(g.alpha)
 
-struct QuadTimeGrid <: NSEBase.AbstractGrid{Float64, 4, (2, 1, 3, 4), (2, 3, 4)}
+struct QuadTimeGrid <: ReSolverFlowsBase.AbstractGrid{Float64, 4, (2, 1, 3, 4), (2, 3, 4)}
     Ny::Int
     Nx::Int
     Nz::Int
@@ -65,8 +65,8 @@ function QuadTimeGrid(Ny::Integer, Nx::Integer, Nz::Integer, Nt::Integer;
 end
 
 Base.size(g::QuadTimeGrid) = (g.Ny, g.Nx, g.Nz, g.Nt)
-NSEBase.weights(g::QuadTimeGrid) = g.ws
-NSEBase.wavenumber_scale(g::QuadTimeGrid, dim::Int) =
+ReSolverFlowsBase.weights(g::QuadTimeGrid) = g.ws
+ReSolverFlowsBase.wavenumber_scale(g::QuadTimeGrid, dim::Int) =
     dim == 2 ? g.alpha :
     dim == 3 ? g.beta :
     dim == 4 ? g.omega :
@@ -77,11 +77,11 @@ NSEBase.wavenumber_scale(g::QuadTimeGrid, dim::Int) =
 # ------------------------------------------------------------------ #
 
 @generated function add_homogeneous_laplacian_generated!(
-        out::NSEBase.FTField{G},
-        u::NSEBase.FTField{G}
+        out::ReSolverFlowsBase.FTField{G},
+        u::ReSolverFlowsBase.FTField{G}
     ) where {
         T, D, AXES, FFT_DIMS_ORDER,
-        G<:NSEBase.AbstractGrid{T, D, AXES, FFT_DIMS_ORDER}}
+        G<:ReSolverFlowsBase.AbstractGrid{T, D, AXES, FFT_DIMS_ORDER}}
 
     H = filter(d -> d != AXES[4], FFT_DIMS_ORDER)
     isempty(H) && return :(return out)
@@ -137,7 +137,7 @@ NSEBase.wavenumber_scale(g::QuadTimeGrid, dim::Int) =
     end
 
     return Base.remove_linenums!(quote
-        $([:($(Symbol("_k_scale", d)) = NSEBase.wavenumber_scale(NSEBase.grid(u), $d)) for d in H]...)
+        $([:($(Symbol("_k_scale", d)) = ReSolverFlowsBase.wavenumber_scale(ReSolverFlowsBase.grid(u), $d)) for d in H]...)
         $(blocks...)
         return out
     end)
@@ -153,25 +153,25 @@ function fill_random!(a)
 end
 
 function check_correctness(g, label)
-    u = NSEBase.FTField(g)
+    u = ReSolverFlowsBase.FTField(g)
     seed = similar(parent(u))
     fill_random!(parent(u))
     fill_random!(seed)
 
-    out_generated = NSEBase.FTField(g)
-    out_cartesian = NSEBase.FTField(g)
+    out_generated = ReSolverFlowsBase.FTField(g)
+    out_cartesian = ReSolverFlowsBase.FTField(g)
     parent(out_generated) .= seed
     parent(out_cartesian) .= seed
 
     add_homogeneous_laplacian_generated!(out_generated, u)
-    NSEBase.add_homogeneous_laplacian!(out_cartesian, u)
+    ReSolverFlowsBase.add_homogeneous_laplacian!(out_cartesian, u)
 
     err = maximum(abs, parent(out_cartesian) .- parent(out_generated))
     ok = err < 1e-12
 
     # Measure allocations after the first call has compiled each method.
     alloc_generated = @allocated add_homogeneous_laplacian_generated!(out_generated, u)
-    alloc_cartesian = @allocated NSEBase.add_homogeneous_laplacian!(out_cartesian, u)
+    alloc_cartesian = @allocated ReSolverFlowsBase.add_homogeneous_laplacian!(out_cartesian, u)
 
     Printf.@printf("  %-30s  cartesian: %s (err=%.2e)\n",
                    label, ok ? "ok" : "BAD", err)
@@ -180,17 +180,17 @@ function check_correctness(g, label)
 end
 
 function run_bench(g, label; samples::Int)
-    u = NSEBase.FTField(g)
-    out = NSEBase.FTField(g)
+    u = ReSolverFlowsBase.FTField(g)
+    out = ReSolverFlowsBase.FTField(g)
     fill_random!(parent(u))
     fill_random!(parent(out))
 
     # Warm-up.
     add_homogeneous_laplacian_generated!(out, u)
-    NSEBase.add_homogeneous_laplacian!(out, u)
+    ReSolverFlowsBase.add_homogeneous_laplacian!(out, u)
 
     b_generated = BenchmarkTools.@benchmark add_homogeneous_laplacian_generated!($out, $u) samples=samples evals=1
-    b_cartesian = BenchmarkTools.@benchmark NSEBase.add_homogeneous_laplacian!($out, $u) samples=samples evals=1
+    b_cartesian = BenchmarkTools.@benchmark ReSolverFlowsBase.add_homogeneous_laplacian!($out, $u) samples=samples evals=1
 
     m_generated = BenchmarkTools.median(b_generated)
     m_cartesian = BenchmarkTools.median(b_cartesian)

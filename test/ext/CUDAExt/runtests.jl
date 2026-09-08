@@ -1,6 +1,6 @@
 import CUDA: i32
 
-const CUDAExt = Base.get_extension(NSEBase, :CUDAExt)
+const CUDAExt = Base.get_extension(ReSolverFlowsBase, :CUDAExt)
 
 # construct mock grid used in tests
 Nx = 15; Ny = 16; Nz = 15; Nt = 15;

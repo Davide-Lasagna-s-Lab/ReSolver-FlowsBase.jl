@@ -34,7 +34,7 @@ using BenchmarkTools
 using LinearAlgebra
 using Printf
 using PyPlot
-using NSEBase
+using ReSolverFlowsBase
 
 include("../test/fake.jl")
 include("../test/test_grids.jl")
@@ -86,7 +86,7 @@ end
                                adjoint::Bool=false) where {
         DIM, T, D, AXES, FFT_DIMS_ORDER, G<:AbstractGrid{T, D, AXES, FFT_DIMS_ORDER}}
     (isnothing(DIM) || isnothing(AXES[DIM])) && return :(return out)
-    DIM ∉ FFT_DIMS_ORDER && return :(throw(NSEBase.NotImplementedError(grid(u), Val($DIM))))
+    DIM ∉ FFT_DIMS_ORDER && return :(throw(ReSolverFlowsBase.NotImplementedError(grid(u), Val($DIM))))
     syms  = [Symbol("_i", d) for d in 1:D]
     n_sym = Symbol("_n", DIM)
     assign = :(@inbounds parent(out)[$(syms...)] =
@@ -117,7 +117,7 @@ end
         body = :($pb; $nb)
     end
     return quote
-        _ddx_scale = NSEBase.wavenumber_scale(NSEBase.grid(u), $DIM)
+        _ddx_scale = ReSolverFlowsBase.wavenumber_scale(ReSolverFlowsBase.grid(u), $DIM)
         _ddx_sign  = adjoint ? -1im : 1im
         $body
         return out
@@ -207,7 +207,7 @@ end
         push!(blocks, quote
             for I in CartesianIndices($(Expr(:tuple, range_exprs...)))
                 neg       = $(Expr(:call, :CartesianIndex, neg_exprs...))
-                _av       = NSEBase._average_complex(data[I], data[neg])
+                _av       = ReSolverFlowsBase._average_complex(data[I], data[neg])
                 data[I]   = _av
                 data[neg] = conj(_av)
             end
@@ -226,10 +226,10 @@ end
 
 function _apply_sym_ft_gen!(u::FTField{<:AbstractGrid{<:Any,<:Any,<:Any,FFT_DIMS_ORDER}}) where {FFT_DIMS_ORDER}
     LI = LinearIndices(parent(u))
-    g  = NSEBase.grid(u)
-    for Ih in CartesianIndices(NSEBase.homogeneous_axes(u))   # ALL kH, not just DC
+    g  = ReSolverFlowsBase.grid(u)
+    for Ih in CartesianIndices(ReSolverFlowsBase.homogeneous_axes(u))   # ALL kH, not just DC
         Ih_neg = CartesianIndex(ntuple(Val(length(FFT_DIMS_ORDER))) do d
-            if FFT_DIMS_ORDER[d] == NSEBase.rfft_dim(g)
+            if FFT_DIMS_ORDER[d] == ReSolverFlowsBase.rfft_dim(g)
                 return Ih[d]
             elseif Ih[d] == 1
                 return Ih[d]
@@ -237,11 +237,11 @@ function _apply_sym_ft_gen!(u::FTField{<:AbstractGrid{<:Any,<:Any,<:Any,FFT_DIMS
                 return size(u, FFT_DIMS_ORDER[d]) - Ih[d] + 2
             end
         end)
-        for Inh in CartesianIndices(NSEBase.inhomogeneous_axes(u))
-            I    = CartesianIndex(NSEBase.combine_indices(g, Inh, Ih))
-            Ineg = CartesianIndex(NSEBase.combine_indices(g, Inh, Ih_neg))
+        for Inh in CartesianIndices(ReSolverFlowsBase.inhomogeneous_axes(u))
+            I    = CartesianIndex(ReSolverFlowsBase.combine_indices(g, Inh, Ih))
+            Ineg = CartesianIndex(ReSolverFlowsBase.combine_indices(g, Inh, Ih_neg))
             if LI[I] <= LI[Ineg]
-                av = NSEBase._average_complex(parent(u)[I], parent(u)[Ineg])
+                av = ReSolverFlowsBase._average_complex(parent(u)[I], parent(u)[Ineg])
                 parent(u)[I]    = av
                 parent(u)[Ineg] = conj(av)
             end
@@ -254,7 +254,7 @@ function _apply_sym_pf_gen!(a::ProjectedField{<:AbstractGrid{<:Any,<:Any,<:Any,F
     Nhom = length(FFT_DIMS_ORDER)
     pa   = parent(a)
     LI   = LinearIndices(pa)
-    for Ih in CartesianIndices(NSEBase.homogeneous_axes(a))   # ALL kH, not just DC
+    for Ih in CartesianIndices(ReSolverFlowsBase.homogeneous_axes(a))   # ALL kH, not just DC
         Ih_neg = CartesianIndex(ntuple(Val(Nhom)) do k
             if k == 1
                 return Ih[k]
@@ -268,7 +268,7 @@ function _apply_sym_pf_gen!(a::ProjectedField{<:AbstractGrid{<:Any,<:Any,<:Any,F
             I    = CartesianIndex(Im, Ih.I...)
             Ineg = CartesianIndex(Im, Ih_neg.I...)
             if LI[I] <= LI[Ineg]
-                av = NSEBase._average_complex(pa[I], pa[Ineg])
+                av = ReSolverFlowsBase._average_complex(pa[I], pa[Ineg])
                 pa[I]    = av
                 pa[Ineg] = conj(av)
             end
@@ -280,7 +280,7 @@ end
 # --- Reference wrappers for dot / normdiff / shift! ---
 
 function _dot_ft_gen(u::FTField{G}, v::FTField{G}) where {G<:AbstractGrid}
-    g = NSEBase.grid(u); pu = parent(u); pv = parent(v); ws = NSEBase.weights(g)
+    g = ReSolverFlowsBase.grid(u); pu = parent(u); pv = parent(v); ws = ReSolverFlowsBase.weights(g)
     s = Ref(zero(real(eltype(u))))
     _for_each_index(g) do ot, inh, idx
         @inbounds s[] += ot * ws[inh...] * real(conj(pu[idx...]) * pv[idx...])
@@ -289,7 +289,7 @@ function _dot_ft_gen(u::FTField{G}, v::FTField{G}) where {G<:AbstractGrid}
 end
 
 function _normdiff_ft_gen(u::FTField{G}, v::FTField{G}) where {G<:AbstractGrid}
-    g = NSEBase.grid(u); pu = parent(u); pv = parent(v); ws = NSEBase.weights(g)
+    g = ReSolverFlowsBase.grid(u); pu = parent(u); pv = parent(v); ws = ReSolverFlowsBase.weights(g)
     s = Ref(zero(real(eltype(u))))
     _for_each_index(g) do ot, inh, idx
         @inbounds s[] += ot * ws[inh...] * abs2(pu[idx...] - pv[idx...])
@@ -299,14 +299,14 @@ end
 
 function _shift_ft_gen!(u::FTField{G}, shifts) where {G<:AbstractGrid}
     any(!iszero, shifts) || return u
-    g = NSEBase.grid(u); pu = parent(u)
-    inh_dims  = NSEBase.inhomogeneous_dims(g)
+    g = ReSolverFlowsBase.grid(u); pu = parent(u)
+    inh_dims  = ReSolverFlowsBase.inhomogeneous_dims(g)
     inh_sizes = map(d -> size(g, d), inh_dims)
     _for_each_homogeneous_index(g) do _, hom_idx
-        k     = NSEBase.to_wavenumber_vector(g, hom_idx)
-        phase = NSEBase._shift_phase(g, shifts, k)
+        k     = ReSolverFlowsBase.to_wavenumber_vector(g, hom_idx)
+        phase = ReSolverFlowsBase._shift_phase(g, shifts, k)
         for I in CartesianIndices(inh_sizes)
-            idx = NSEBase.combine_indices(g, Tuple(I), hom_idx)
+            idx = ReSolverFlowsBase.combine_indices(g, Tuple(I), hom_idx)
             @inbounds pu[idx...] *= phase
         end
     end
@@ -316,19 +316,19 @@ end
 function _project_gen!(a::ProjectedField{G},
                         u::VectorField{N, <:FTField{G}}) where {N, T, G<:AbstractGrid{T}}
     a .= zero(Complex{T})
-    _proj_gen_inner!(parent(a), u, a, weights(NSEBase.grid(u)), NSEBase.grid(u))
+    _proj_gen_inner!(parent(a), u, a, weights(ReSolverFlowsBase.grid(u)), ReSolverFlowsBase.grid(u))
     return a
 end
 
 function _expand_gen!(u::VectorField{N, <:FTField{G}},
                        a::ProjectedField{G}) where {N, T, G<:AbstractGrid{T}}
-    _expd_gen_inner!(u, parent(a), a, NSEBase.grid(u))
+    _expd_gen_inner!(u, parent(a), a, ReSolverFlowsBase.grid(u))
     return u
 end
 
 function _dot_pf_gen(a::ProjectedField{G}, b::ProjectedField{G}) where {G<:AbstractGrid}
     s = Ref(zero(real(eltype(a))))
-    _for_each_homogeneous_index(NSEBase.grid(a)) do ot, hom_idx
+    _for_each_homogeneous_index(ReSolverFlowsBase.grid(a)) do ot, hom_idx
         for m in axes(a, 1)
             @inbounds s[] += ot * real(LinearAlgebra.dot(a[m, hom_idx...], b[m, hom_idx...]))
         end
@@ -338,7 +338,7 @@ end
 
 function _normdiff_pf_gen(a::ProjectedField{G}, b::ProjectedField{G}) where {G<:AbstractGrid}
     s = Ref(zero(real(eltype(a))))
-    _for_each_homogeneous_index(NSEBase.grid(a)) do ot, hom_idx
+    _for_each_homogeneous_index(ReSolverFlowsBase.grid(a)) do ot, hom_idx
         for m in axes(a, 1)
             @inbounds s[] += ot * abs2(a[m, hom_idx...] - b[m, hom_idx...])
         end
@@ -348,10 +348,10 @@ end
 
 function _shift_pf_gen!(a::ProjectedField{G}, shifts) where {G<:AbstractGrid}
     any(!iszero, shifts) || return a
-    g = NSEBase.grid(a)
+    g = ReSolverFlowsBase.grid(a)
     _for_each_homogeneous_index(g) do _, hom_idx
-        k     = NSEBase.to_wavenumber_vector(g, hom_idx)
-        phase = NSEBase._shift_phase(g, shifts, k)
+        k     = ReSolverFlowsBase.to_wavenumber_vector(g, hom_idx)
+        phase = ReSolverFlowsBase._shift_phase(g, shifts, k)
         for m in axes(a, 1)
             @inbounds a[m, hom_idx...] *= phase
         end
@@ -383,15 +383,15 @@ Base.size(g::Layout2) = (g.Nx, g.Ny, g.Nz, g.Nt)
 Base.size(g::Layout3) = (g.Nx, g.Nz, g.Ny, g.Nt)
 Base.size(g::Layout4) = (g.Nx, g.Nz, g.Nt, g.Ny)
 
-NSEBase.weights(g::Layout1) = g.ws
-NSEBase.weights(g::Layout2) = g.ws
-NSEBase.weights(g::Layout3) = g.ws
-NSEBase.weights(g::Layout4) = g.ws
+ReSolverFlowsBase.weights(g::Layout1) = g.ws
+ReSolverFlowsBase.weights(g::Layout2) = g.ws
+ReSolverFlowsBase.weights(g::Layout3) = g.ws
+ReSolverFlowsBase.weights(g::Layout4) = g.ws
 
-NSEBase.wavenumber_scale(::Layout1, ::Int) = 1.0
-NSEBase.wavenumber_scale(::Layout2, ::Int) = 1.0
-NSEBase.wavenumber_scale(::Layout3, ::Int) = 1.0
-NSEBase.wavenumber_scale(::Layout4, ::Int) = 1.0
+ReSolverFlowsBase.wavenumber_scale(::Layout1, ::Int) = 1.0
+ReSolverFlowsBase.wavenumber_scale(::Layout2, ::Int) = 1.0
+ReSolverFlowsBase.wavenumber_scale(::Layout3, ::Int) = 1.0
+ReSolverFlowsBase.wavenumber_scale(::Layout4, ::Int) = 1.0
 
 # Construct a layout from physical sizes (Ny, Nx, Nz, Nt)
 make_grid(::Type{Layout1}, Ny, Nx, Nz, Nt) = Layout1(Ny, Nx, Nz, Nt, ones(Ny))
@@ -527,13 +527,13 @@ for (li, LT) in enumerate(LAYOUTS)
         # 14. apply_symmetry! FTField  (cart = DC-plane only; gen = @generated all kH)
         parent(uc) .= randn(ComplexF64, size(parent(u)))
         push_ratio!(14,
-            () -> NSEBase.apply_symmetry!(uc),
-            () -> _apply_symmetry_gen!(parent(uc), Val(NSEBase.fft_dims(NSEBase.grid(uc)))))
+            () -> ReSolverFlowsBase.apply_symmetry!(uc),
+            () -> _apply_symmetry_gen!(parent(uc), Val(ReSolverFlowsBase.fft_dims(ReSolverFlowsBase.grid(uc)))))
 
         # 15. apply_symmetry! ProjectedField (cart = DC-plane only; gen = CartesianIndices all kH)
         parent(ac) .= randn(ComplexF64, size(parent(a)))
         push_ratio!(15,
-            () -> NSEBase.apply_symmetry!(ac),
+            () -> ReSolverFlowsBase.apply_symmetry!(ac),
             () -> _apply_sym_pf_gen!(ac))
     end
 end

@@ -172,7 +172,7 @@
         g  = TripleGrid(Ny, Nx, Nz; α=1.0, β=1.0)
         Lx = 2π / g.α
         Lz = 2π / g.β
-        û = NSEBase.FFT(NSEBase.Field(g, (y, x, z) -> exp(sin(x)) * cos(z)))
+        û = ReSolverFlowsBase.FFT(ReSolverFlowsBase.Field(g, (y, x, z) -> exp(sin(x)) * cos(z)))
         expected, _ = HCubature.hcubature(xz -> exp(2sin(xz[1])) * cos(xz[2])^2,
                                           [0.0, 0.0], [Lx, Lz])
         @test dot(û, û) ≈ Ny * expected / (Lx * Lz) rtol=1e-5

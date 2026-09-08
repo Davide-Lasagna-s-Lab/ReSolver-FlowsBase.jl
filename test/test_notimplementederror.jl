@@ -1,9 +1,9 @@
 @testset "NotImplementedError                                                 " begin
     # unimplemented method based on abstract type
-    f1(a::Number) = throw(NSEBase.NotImplementedError(a))
+    f1(a::Number) = throw(ReSolverFlowsBase.NotImplementedError(a))
 
     # test that abstract method returns error
-    @test_throws NSEBase.NotImplementedError f1(2)
+    @test_throws ReSolverFlowsBase.NotImplementedError f1(2)
     @test_throws "f1(Int64) is missing a concrete implementation" f1(2)
 
     # concrete method implementation

@@ -5,7 +5,7 @@ using HCubature
 using LinearAlgebra
 using CUDA
 using MPI
-using NSEBase
+using ReSolverFlowsBase
 using FDGrids
 
 # run MPI test file in it's own Julia instance
@@ -32,7 +32,7 @@ include("test_grids.jl")
 include("mock_channel_grid.jl")
 
 # Generic interface / utility tests — exercise every public function in
-# NSEBase against the documented contract, not its implementation.
+# ReSolverFlowsBase against the documented contract, not its implementation.
 include("test_notimplementederror.jl")
 include("test_abstractgrid.jl")
 include("test_wavenumbervector.jl")

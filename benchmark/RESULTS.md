@@ -82,4 +82,4 @@ The CartesianIndices refactoring delivers substantial performance improvements:
 - **Shift operations**: 1.6-1.7× faster
 - **Derivatives**: 1.07-1.17× faster
 
-The improvements are **consistent across all array layouts**, demonstrating that the CartesianIndices approach is robust and universally superior to the @generated approach. Combined with improved code clarity and maintainability, this refactoring represents a significant upgrade to the NSEBase library.
+The improvements are **consistent across all array layouts**, demonstrating that the CartesianIndices approach is robust and universally superior to the @generated approach. Combined with improved code clarity and maintainability, this refactoring represents a significant upgrade to the ReSolverFlowsBase library.

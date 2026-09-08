@@ -27,7 +27,7 @@
 using BenchmarkTools
 using LinearAlgebra
 using Printf
-using NSEBase
+using ReSolverFlowsBase
 
 include("../test/fake.jl")
 include("../test/test_grids.jl")
@@ -50,7 +50,7 @@ include("../test/test_grids.jl")
         DIM, T, D, AXES, FFT_DIMS_ORDER, G<:AbstractGrid{T, D, AXES, FFT_DIMS_ORDER}}
 
     (isnothing(DIM) || isnothing(AXES[DIM])) && return :(return out)
-    DIM ∉ FFT_DIMS_ORDER && return :(throw(NSEBase.NotImplementedError(grid(u), Val($DIM))))
+    DIM ∉ FFT_DIMS_ORDER && return :(throw(ReSolverFlowsBase.NotImplementedError(grid(u), Val($DIM))))
 
     syms  = [Symbol("_i", d) for d in 1:D]
     n_sym = Symbol("_n", DIM)
@@ -116,7 +116,7 @@ function ddx_cartesian!(out::FTField{G}, u::FTField{G}, ::Val{DIM};
     ) where {DIM, T, D, AXES, FFT_DIMS_ORDER, G<:AbstractGrid{T, D, AXES, FFT_DIMS_ORDER}}
 
     (isnothing(DIM) || isnothing(AXES[DIM])) && return out
-    DIM ∉ FFT_DIMS_ORDER && throw(NSEBase.NotImplementedError(grid(u), Val(DIM)))
+    DIM ∉ FFT_DIMS_ORDER && throw(ReSolverFlowsBase.NotImplementedError(grid(u), Val(DIM)))
 
     scale = wavenumber_scale(grid(u), DIM)
     coeff = adjoint ? -im * T(scale) : im * T(scale)
@@ -189,7 +189,7 @@ function ddx_broadcast!(out::FTField{G}, u::FTField{G}, ::Val{DIM},
         DIM, T, D, AXES, FFT_DIMS_ORDER, G<:AbstractGrid{T, D, AXES, FFT_DIMS_ORDER}}
 
     (isnothing(DIM) || isnothing(AXES[DIM])) && return out
-    DIM ∉ FFT_DIMS_ORDER && throw(NSEBase.NotImplementedError(grid(u), Val(DIM)))
+    DIM ∉ FFT_DIMS_ORDER && throw(ReSolverFlowsBase.NotImplementedError(grid(u), Val(DIM)))
 
     wn = wns[DIM]
     # Shape has Nd at position DIM and 1 everywhere else.
@@ -262,8 +262,8 @@ end
 QuadGrid(Ny, Nx, Nz, Nt) = QuadGrid(Ny, Nx, Nz, Nt, ones(Ny))
 
 Base.size(g::QuadGrid)                            = (g.Ny, g.Nx, g.Nz, g.Nt)
-NSEBase.weights(g::QuadGrid)                      = g.ws
-NSEBase.wavenumber_scale(::QuadGrid, ::Int)       = 1.0
+ReSolverFlowsBase.weights(g::QuadGrid)                      = g.ws
+ReSolverFlowsBase.wavenumber_scale(::QuadGrid, ::Int)       = 1.0
 
 println("=== Correctness checks ===")
 let g = TripleGrid(5, 8, 6)

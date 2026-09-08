@@ -4,7 +4,7 @@ import MPI
 import FDGrids
 import CUDA
 
-using NSEBase
+using ReSolverFlowsBase
 
 include("../../mock_channel_grid.jl")
 
@@ -15,8 +15,8 @@ nranks = MPI.Comm_size(comm)
 rank   = MPI.Comm_rank(comm)
 
 function build_seeded_field(g, dealias)
-    u = NSEBase.Field(g; dealias=dealias)
-    y, x, z, t = NSEBase.points(g; dealias=dealias)
+    u = ReSolverFlowsBase.Field(g; dealias=dealias)
+    y, x, z, t = ReSolverFlowsBase.points(g; dealias=dealias)
     parent(u) .= @. sin(y) * cos(x) + 0.3 * sin(2*z) * cos(t)
     return u
 end
@@ -38,7 +38,7 @@ y_offset = rank * Ny_local
 @testset "Decomposed cuFFT                                                    " for dealias in [false, true]
     @testset "construction" begin
         p = @test_nowarn FFTPlans(g; dealias=dealias)
-        szs = dealias ? NSEBase.get_padded_size((Nx, Nz, Nt), (1, 2, 3)) : (Nx, Nz, Nt)
+        szs = dealias ? ReSolverFlowsBase.get_padded_size((Nx, Nz, Nt), (1, 2, 3)) : (Nx, Nz, Nt)
         @test p.norm == Float32(1/prod(szs))
         @test p.cache isa CUDA.CuArray
         @test size(p.cache) == (Ny_local + 2*NHALO, ntuple(i -> i==1 ? (szs[i] >> 1) + 1 : szs[i], 3)...)
@@ -49,8 +49,8 @@ y_offset = rank * Ny_local
         p = FFTPlans(g; dealias=dealias)
 
         u    = build_seeded_field(g, dealias)
-        uhat = NSEBase.FTField(g)
-        v    = NSEBase.Field(g; dealias=dealias)
+        uhat = ReSolverFlowsBase.FTField(g)
+        v    = ReSolverFlowsBase.Field(g; dealias=dealias)
 
         @test parent(parent(p(v, p(uhat, u)))) ≈ parent(parent(u))
     end

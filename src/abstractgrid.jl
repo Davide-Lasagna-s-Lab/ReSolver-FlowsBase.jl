@@ -1,4 +1,4 @@
-# Abstract interface for all computational grids in NSEBase.
+# Abstract interface for all computational grids in ReSolverFlowsBase.
 #
 # `AbstractGrid{T, D, AXES, FFT_DIMS_ORDER}` is the single point of coupling between
 # field types (`FTField`, `Field`, `VectorField`, `ProjectedField`) and the
@@ -35,7 +35,7 @@ Type parameters:
 - `T`: scalar real type used by physical-space fields on this grid.
 - `D`: number of array dimensions.
 - `AXES`: four-entry Cartesian axis layout `(x_dim, y_dim, z_dim, t_dim)`.
-  NSEBase assumes this tuple always has four entries, one for each logical
+  ReSolverFlowsBase assumes this tuple always has four entries, one for each logical
   Cartesian coordinate.  Each entry is the array dimension occupied by that
   coordinate, or `nothing` when the coordinate is absent.  The non-`nothing`
   entries should be a permutation of `1:D`.  For example, a three-dimensional

@@ -8,7 +8,7 @@
 #   - vector-field derivatives consume per-component halo request tuples
 #   - `interior_laplacian!` / `boundary_laplacian!` reproduce the
 #     analytic Laplacian after halo exchange
-#   - the 2-arg `NSEBase.laplacian!` auto-exchange form agrees
+#   - the 2-arg `ReSolverFlowsBase.laplacian!` auto-exchange form agrees
 
 using Test
 
@@ -16,10 +16,10 @@ import FDGrids
 import LinearAlgebra
 import MPI
 
-using NSEBase,
+using ReSolverFlowsBase,
       FDGrids
 
-const MPIExt = Base.get_extension(NSEBase, :MPIExt)
+const MPIExt = Base.get_extension(ReSolverFlowsBase, :MPIExt)
 
 MPI.Initialized() || MPI.Init()
 
@@ -60,85 +60,85 @@ g = distributed(g_parent, base_comm;
                 decomposed_physical_dims=(:y,), nprocesses=(nranks,), nhalo=(NHALO,))
 
 # Pre-build FFT plans and reusable physical/spectral fields.
-plans  = NSEBase.FFTPlans(g; dealias=false, flags=NSEBase.FFTW.ESTIMATE)
-u_phys = NSEBase.Field(g, u_fun)
-u      = NSEBase.FTField(g); plans(u, u_phys)
+plans  = ReSolverFlowsBase.FFTPlans(g; dealias=false, flags=ReSolverFlowsBase.FFTW.ESTIMATE)
+u_phys = ReSolverFlowsBase.Field(g, u_fun)
+u      = ReSolverFlowsBase.FTField(g); plans(u, u_phys)
 
 @testset "staged ddy! matches analytic du/dy                                  " begin
-    out = NSEBase.FTField(g)
-    NSEBase.ddy!(out, u)
+    out = ReSolverFlowsBase.FTField(g)
+    ReSolverFlowsBase.ddy!(out, u)
 
-    expected = NSEBase.FTField(g)
-    plans(expected, NSEBase.Field(g, dudy_fun))
+    expected = ReSolverFlowsBase.FTField(g)
+    plans(expected, ReSolverFlowsBase.Field(g, dudy_fun))
 
     @test parent(out) ≈ parent(expected) rtol=1e-6
 end
 
 @testset "staged VectorField derivative uses per-component halo requests      " begin
-    q        = NSEBase.VectorField(g, NSEBase.FTField; N=2)
-    expected = NSEBase.VectorField(g, NSEBase.FTField; N=2)
-    out      = NSEBase.VectorField(g, NSEBase.FTField; N=2)
+    q        = ReSolverFlowsBase.VectorField(g, ReSolverFlowsBase.FTField; N=2)
+    expected = ReSolverFlowsBase.VectorField(g, ReSolverFlowsBase.FTField; N=2)
+    out      = ReSolverFlowsBase.VectorField(g, ReSolverFlowsBase.FTField; N=2)
 
-    plans(q[1], NSEBase.Field(g, u_fun))
-    plans(q[2], NSEBase.Field(g, (y, x, z, t) -> 2u_fun(y, x, z, t)))
-    plans(expected[1], NSEBase.Field(g, dudy_fun))
-    plans(expected[2], NSEBase.Field(g, (y, x, z, t) -> 2dudy_fun(y, x, z, t)))
+    plans(q[1], ReSolverFlowsBase.Field(g, u_fun))
+    plans(q[2], ReSolverFlowsBase.Field(g, (y, x, z, t) -> 2u_fun(y, x, z, t)))
+    plans(expected[1], ReSolverFlowsBase.Field(g, dudy_fun))
+    plans(expected[2], ReSolverFlowsBase.Field(g, (y, x, z, t) -> 2dudy_fun(y, x, z, t)))
 
-    NSEBase.ddy!(out, q)
+    ReSolverFlowsBase.ddy!(out, q)
 
     @test parent(out[1]) ≈ parent(expected[1]) rtol=1e-6
     @test parent(out[2]) ≈ parent(expected[2]) rtol=1e-6
 end
 
-sd(sym) = NSEBase.physical_to_storage_dim(NSEBase.grid(u), Val(sym))
+sd(sym) = ReSolverFlowsBase.physical_to_storage_dim(ReSolverFlowsBase.grid(u), Val(sym))
 
 @testset "interior_dd! + wait + boundary_dd! covers the FD direction          " begin
-    out = NSEBase.FTField(g)
+    out = ReSolverFlowsBase.FTField(g)
     requests = MPIExt.init_requests!(u)
     MPIExt.interior_dd!(out, u, sd(:y))
     MPIExt.wait_requests!(requests)
     MPIExt.boundary_dd!(out, u, sd(:y))
 
-    expected = NSEBase.FTField(g)
-    plans(expected, NSEBase.Field(g, dudy_fun))
+    expected = ReSolverFlowsBase.FTField(g)
+    plans(expected, ReSolverFlowsBase.Field(g, dudy_fun))
     @test parent(out) ≈ parent(expected) rtol=1e-6
 end
 
 @testset "dd! along an FFT direction is spectral (no halo needed)             " begin
-    out = NSEBase.FTField(g)
-    NSEBase.dd!(out, u, sd(:x))
-    expected = NSEBase.FTField(g)
-    plans(expected, NSEBase.Field(g, dudx_fun))
+    out = ReSolverFlowsBase.FTField(g)
+    ReSolverFlowsBase.dd!(out, u, sd(:x))
+    expected = ReSolverFlowsBase.FTField(g)
+    plans(expected, ReSolverFlowsBase.Field(g, dudx_fun))
     @test parent(out) ≈ parent(expected) rtol=1e-6
 
-    out_z = NSEBase.FTField(g)
-    NSEBase.dd!(out_z, u, sd(:z))
-    expected_z = NSEBase.FTField(g)
-    plans(expected_z, NSEBase.Field(g, dudz_fun))
+    out_z = ReSolverFlowsBase.FTField(g)
+    ReSolverFlowsBase.dd!(out_z, u, sd(:z))
+    expected_z = ReSolverFlowsBase.FTField(g)
+    plans(expected_z, ReSolverFlowsBase.Field(g, dudz_fun))
     @test parent(out_z) ≈ parent(expected_z) rtol=1e-6
 
-    out_t = NSEBase.FTField(g)
-    NSEBase.dd!(out_t, u, sd(:t))
-    expected_t = NSEBase.FTField(g)
-    plans(expected_t, NSEBase.Field(g, dudt_fun))
+    out_t = ReSolverFlowsBase.FTField(g)
+    ReSolverFlowsBase.dd!(out_t, u, sd(:t))
+    expected_t = ReSolverFlowsBase.FTField(g)
+    plans(expected_t, ReSolverFlowsBase.Field(g, dudt_fun))
     @test parent(out_t) ≈ parent(expected_t) rtol=1e-6
 end
 
 @testset "interior_laplacian! + boundary_laplacian! matches analytic Laplacian" begin
-    out = NSEBase.FTField(g)
+    out = ReSolverFlowsBase.FTField(g)
     requests = MPIExt.init_requests!(u)
     MPIExt.interior_laplacian!(out, u)
     MPIExt.wait_requests!(requests)
     MPIExt.boundary_laplacian!(out, u)
 
-    expected = NSEBase.FTField(g)
-    plans(expected, NSEBase.Field(g, lapl_fun))
+    expected = ReSolverFlowsBase.FTField(g)
+    plans(expected, ReSolverFlowsBase.Field(g, lapl_fun))
     @test parent(out) ≈ parent(expected) rtol=1e-6
 end
 
-@testset "NSEBase.laplacian!(out, u) agrees with the explicit form            " begin
-    out_a = NSEBase.FTField(g)
-    out_b = NSEBase.FTField(g)
+@testset "ReSolverFlowsBase.laplacian!(out, u) agrees with the explicit form  " begin
+    out_a = ReSolverFlowsBase.FTField(g)
+    out_b = ReSolverFlowsBase.FTField(g)
 
     requests = MPIExt.init_requests!(u)
     MPIExt.interior_laplacian!(out_a, u)
@@ -146,7 +146,7 @@ end
     MPIExt.boundary_laplacian!(out_a, u)
 
     # 2-arg overload — auto-exchange.
-    NSEBase.laplacian!(out_b, u)
+    ReSolverFlowsBase.laplacian!(out_b, u)
 
     @test parent(out_a) ≈ parent(out_b)
 end

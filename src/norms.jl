@@ -58,7 +58,7 @@ function LinearAlgebra.dot(u::FTField{G}, v::FTField{G}) where {FFT_DIMS_ORDER, 
     return _dot(parent(u), parent(v), weights(grid(u)), Val(FFT_DIMS_ORDER))
 end
 
-# Helper function for the dot product. This is used by downstream packages (e.g. NSEBaseMpiExt)
+# Helper function for the dot product. This is used by downstream packages (e.g. ReSolverFlowsBaseMpiExt)
 function _dot(u::AbstractArray, v::AbstractArray, ws::AbstractArray, ::Val{FFT_DIMS_ORDER}) where {FFT_DIMS_ORDER}
     s = zero(real(eltype(u)))
     @inbounds for I in CartesianIndices(u)

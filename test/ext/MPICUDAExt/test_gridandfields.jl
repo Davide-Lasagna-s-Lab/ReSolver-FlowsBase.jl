@@ -6,9 +6,9 @@ import CUDA
 import Adapt
 import HaloArrays
 
-using NSEBase
+using ReSolverFlowsBase
 
-const MPICUDAExt = Base.get_extension(NSEBase, :MPICUDAExt)
+const MPICUDAExt = Base.get_extension(ReSolverFlowsBase, :MPICUDAExt)
 
 include("../../mock_channel_grid.jl")
 

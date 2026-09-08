@@ -74,20 +74,20 @@
 
     @testset "show_tuning_info!" begin
         @test CUDAExt.TUNING_INFO[] == false
-        NSEBase.show_tuning_info!(true)
+        ReSolverFlowsBase.show_tuning_info!(true)
         @test CUDAExt.TUNING_INFO[] == true
-        NSEBase.show_tuning_info!(false)
+        ReSolverFlowsBase.show_tuning_info!(false)
         @test CUDAExt.TUNING_INFO[] == false
     end
 
     @testset "set_tuning_samples!" begin
         @test CUDAExt.TUNING_SAMPLES[] == 5
-        NSEBase.set_tuning_samples!(10)
+        ReSolverFlowsBase.set_tuning_samples!(10)
         @test CUDAExt.TUNING_SAMPLES[] == 10
-        NSEBase.set_tuning_samples!(1)
+        ReSolverFlowsBase.set_tuning_samples!(1)
         @test CUDAExt.TUNING_SAMPLES[] == 1
-        @test_throws ArgumentError NSEBase.set_tuning_samples!(0)
-        @test_throws ArgumentError NSEBase.set_tuning_samples!(-1)
+        @test_throws ArgumentError ReSolverFlowsBase.set_tuning_samples!(0)
+        @test_throws ArgumentError ReSolverFlowsBase.set_tuning_samples!(-1)
     end
 
     dummy_kernel1(x, y, z) = nothing
@@ -110,7 +110,7 @@
         @test length(CUDAExt.LAUNCH_PARAMS) == 1
 
         # resetting removes single element
-        NSEBase.reset_launch_params!()
+        ReSolverFlowsBase.reset_launch_params!()
         @test isempty(CUDAExt.LAUNCH_PARAMS)
 
         # two different methods
@@ -125,7 +125,7 @@
         @test length(CUDAExt.LAUNCH_PARAMS) == 3
 
         # resetting removes all elements
-        NSEBase.reset_launch_params!()
+        ReSolverFlowsBase.reset_launch_params!()
         @test isempty(CUDAExt.LAUNCH_PARAMS)
     end
 end

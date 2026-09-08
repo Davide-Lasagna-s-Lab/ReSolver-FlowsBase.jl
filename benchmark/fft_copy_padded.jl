@@ -1,7 +1,7 @@
 using BenchmarkTools
 using PyPlot
 using Printf
-using NSEBase
+using ReSolverFlowsBase
 
 # ------------------------------------------------------------------ #
 # cases: (dimensionality, order of transformed dims, sizes to sweep)  #
@@ -27,17 +27,17 @@ for (ci, c) in enumerate(cases)
 
     for n in c.sizes
         sz      = ntuple(_ -> n, c.D)
-        pad_sz  = NSEBase.get_padded_size(sz, c.order)
-        spec_sz = NSEBase._get_transform_size(sz,     c.order[1])
-        cach_sz = NSEBase._get_transform_size(pad_sz, c.order[1])
+        pad_sz  = ReSolverFlowsBase.get_padded_size(sz, c.order)
+        spec_sz = ReSolverFlowsBase._get_transform_size(sz,     c.order[1])
+        cach_sz = ReSolverFlowsBase._get_transform_size(pad_sz, c.order[1])
 
         u     = rand(ComplexF64, spec_sz)
         cache = rand(ComplexF64, cach_sz)
 
-        b1 = @benchmark NSEBase._copy_to_padded!(  buf, $u,  $c.order) setup=(buf=copy($cache)) evals=1
-        b2 = @benchmark NSEBase._copy_from_padded!($u,  buf, $c.order) setup=(buf=copy($cache)) evals=1
-        b3 = @benchmark NSEBase._add_from_padded!( $u,  buf, $c.order) setup=(buf=copy($cache)) evals=1
-        b4 = @benchmark NSEBase._apply_mask!(buf)                             setup=(buf=copy($cache)) evals=1
+        b1 = @benchmark ReSolverFlowsBase._copy_to_padded!(  buf, $u,  $c.order) setup=(buf=copy($cache)) evals=1
+        b2 = @benchmark ReSolverFlowsBase._copy_from_padded!($u,  buf, $c.order) setup=(buf=copy($cache)) evals=1
+        b3 = @benchmark ReSolverFlowsBase._add_from_padded!( $u,  buf, $c.order) setup=(buf=copy($cache)) evals=1
+        b4 = @benchmark ReSolverFlowsBase._apply_mask!(buf)                             setup=(buf=copy($cache)) evals=1
 
         for (fi, b) in enumerate((b1, b2, b3, b4))
             push!(results[ci][fi].ns, median(b).time)

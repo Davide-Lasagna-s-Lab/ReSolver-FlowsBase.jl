@@ -1,4 +1,4 @@
-# Benchmark: NSEBase.LoopGalerkin vs NSEBase.GemmGalerkin vs a hand-rolled
+# Benchmark: ReSolverFlowsBase.LoopGalerkin vs ReSolverFlowsBase.GemmGalerkin vs a hand-rolled
 # loop kernel that hardcodes the ChannelFlow array layout.  All three
 # implementations operate on kH-dependent modes with the canonical layout
 # documented in `src/galerkin.jl`.
@@ -17,7 +17,7 @@
 # The LOOP series is a benchmark-local hand-rolled loop specialised to the
 # array layout above.  It is the reference for what a perfectly-specialised
 # implementation can achieve and provides a direct comparison against the
-# generic NSEBase.LoopGalerkin (NSLOOP) implementation.
+# generic ReSolverFlowsBase.LoopGalerkin (NSLOOP) implementation.
 #
 # Run:
 #
@@ -32,21 +32,21 @@
 #   GALERKIN_BENCHMARK_SECONDS=0.2
 
 import BenchmarkTools
-import NSEBase
+import ReSolverFlowsBase
 import PyPlot
 
 # ─────────────────────────────────────────────────────────────── #
 # Minimal concrete grid — same layout as ChannelFlow             #
 # ─────────────────────────────────────────────────────────────── #
-struct BenchGrid <: NSEBase.AbstractGrid{Float64, 4, (2, 1, 3, 4), (2, 3, 4)}
+struct BenchGrid <: ReSolverFlowsBase.AbstractGrid{Float64, 4, (2, 1, 3, 4), (2, 3, 4)}
     dims :: NTuple{4, Int}
     ws :: Vector{Float64}
 end
 
 Base.size(g::BenchGrid) = g.dims
-NSEBase.weights(g::BenchGrid)               = g.ws
-NSEBase.wavenumber_scale(::BenchGrid, ::Int) = 1.0
-NSEBase.points(g::BenchGrid; _...)          = begin
+ReSolverFlowsBase.weights(g::BenchGrid)               = g.ws
+ReSolverFlowsBase.wavenumber_scale(::BenchGrid, ::Int) = 1.0
+ReSolverFlowsBase.points(g::BenchGrid; _...)          = begin
     Ny, Nx, Nz, Nt = size(g)
     (reshape(collect(1.0:Ny), Ny, 1, 1, 1),
      reshape(collect(1.0:Nx), 1, Nx, 1, 1),
@@ -117,7 +117,7 @@ end
 #   modes[n]      :: Array{ComplexF64,5}  # (Ny, Nm, Nx_half, Nz, Nt)
 #
 # They provide the performance baseline against which the generic
-# NSEBase.LoopGalerkin (NSLOOP) implementation is compared.
+# ReSolverFlowsBase.LoopGalerkin (NSLOOP) implementation is compared.
 
 function loop_project!(a, u, modes, ws)
     pa = parent(a)
@@ -166,7 +166,7 @@ end
 # ─────────────────────────────────────────────────────────────── #
 function benchmark_kernel(thunk)
     # Each call site passes a concrete zero-arg closure capturing its own
-    # arguments, e.g. `() -> NSEBase.project!(a, u, NSEBase.LoopGalerkin())`.
+    # arguments, e.g. `() -> ReSolverFlowsBase.project!(a, u, ReSolverFlowsBase.LoopGalerkin())`.
     # Avoiding varargs + splatting here keeps Julia's inference happy on the
     # heavily-parametric kernels.
     thunk()  # warmup keeps compilation out of the reported BenchmarkTools trial.
@@ -251,25 +251,25 @@ function benchmark_project!(results, scale, dims)
             continue
         end
 
-        u_data = NSEBase.VectorField(g)
+        u_data = ReSolverFlowsBase.VectorField(g)
         u_data .= randn(ComplexF64)
 
         modes    = kh_dependent_modes(dims, Nm)
-        a_loop   = NSEBase.ProjectedField(g, modes)
-        a_nsloop = NSEBase.ProjectedField(g, modes)
-        a_gemm   = NSEBase.ProjectedField(g, modes)
+        a_loop   = ReSolverFlowsBase.ProjectedField(g, modes)
+        a_nsloop = ReSolverFlowsBase.ProjectedField(g, modes)
+        a_gemm   = ReSolverFlowsBase.ProjectedField(g, modes)
 
         # Correctness: all three implementations must agree.
-        loop_project!(a_loop, u_data, modes, NSEBase.weights(g))
-        NSEBase.project!(a_nsloop, u_data, NSEBase.LoopGalerkin())
-        NSEBase.project!(a_gemm,   u_data, NSEBase.GemmGalerkin())
+        loop_project!(a_loop, u_data, modes, ReSolverFlowsBase.weights(g))
+        ReSolverFlowsBase.project!(a_nsloop, u_data, ReSolverFlowsBase.LoopGalerkin())
+        ReSolverFlowsBase.project!(a_gemm,   u_data, ReSolverFlowsBase.GemmGalerkin())
         @assert maximum(abs, parent(a_loop) .- parent(a_nsloop)) < 1e-8 "project! NSLOOP mismatch (scale=$scale, Nm=$Nm)"
         @assert maximum(abs, parent(a_loop) .- parent(a_gemm))   < 1e-8 "project! GEMM mismatch (scale=$scale, Nm=$Nm)"
 
-        ws = NSEBase.weights(g)
+        ws = ReSolverFlowsBase.weights(g)
         t_loop,   alloc_loop   = benchmark_kernel(() -> loop_project!(a_loop, u_data, modes, ws))
-        t_nsloop, alloc_nsloop = benchmark_kernel(() -> NSEBase.project!(a_nsloop, u_data, NSEBase.LoopGalerkin()))
-        t_gemm,   alloc_gemm   = benchmark_kernel(() -> NSEBase.project!(a_gemm,   u_data, NSEBase.GemmGalerkin()))
+        t_nsloop, alloc_nsloop = benchmark_kernel(() -> ReSolverFlowsBase.project!(a_nsloop, u_data, ReSolverFlowsBase.LoopGalerkin()))
+        t_gemm,   alloc_gemm   = benchmark_kernel(() -> ReSolverFlowsBase.project!(a_gemm,   u_data, ReSolverFlowsBase.GemmGalerkin()))
 
         record!(results; scale, dims, op="project", Nm, alg="LOOP",   time_s=t_loop,   alloc_bytes=alloc_loop)
         record!(results; scale, dims, op="project", Nm, alg="NSLOOP", time_s=t_nsloop, alloc_bytes=alloc_nsloop)
@@ -289,14 +289,14 @@ function benchmark_expand!(results, scale, dims)
             continue
         end
 
-        u_loop   = NSEBase.VectorField(g)
-        u_nsloop = NSEBase.VectorField(g)
-        u_gemm   = NSEBase.VectorField(g)
+        u_loop   = ReSolverFlowsBase.VectorField(g)
+        u_nsloop = ReSolverFlowsBase.VectorField(g)
+        u_gemm   = ReSolverFlowsBase.VectorField(g)
 
         modes    = kh_dependent_modes(dims, Nm)
-        a_loop   = NSEBase.ProjectedField(g, modes)
-        a_nsloop = NSEBase.ProjectedField(g, modes)
-        a_gemm   = NSEBase.ProjectedField(g, modes)
+        a_loop   = ReSolverFlowsBase.ProjectedField(g, modes)
+        a_nsloop = ReSolverFlowsBase.ProjectedField(g, modes)
+        a_gemm   = ReSolverFlowsBase.ProjectedField(g, modes)
 
         coeffs = randn(ComplexF64, size(parent(a_loop)))
         parent(a_loop)   .= coeffs
@@ -305,16 +305,16 @@ function benchmark_expand!(results, scale, dims)
 
         # Correctness: all three implementations must agree.
         loop_expand!(u_loop, a_loop, modes)
-        NSEBase.expand!(u_nsloop, a_nsloop, NSEBase.LoopGalerkin())
-        NSEBase.expand!(u_gemm,   a_gemm,   NSEBase.GemmGalerkin())
+        ReSolverFlowsBase.expand!(u_nsloop, a_nsloop, ReSolverFlowsBase.LoopGalerkin())
+        ReSolverFlowsBase.expand!(u_gemm,   a_gemm,   ReSolverFlowsBase.GemmGalerkin())
         for n in 1:NCOMP
             @assert maximum(abs, parent(u_loop[n]) .- parent(u_nsloop[n])) < 1e-8 "expand! NSLOOP mismatch (scale=$scale, Nm=$Nm, component=$n)"
             @assert maximum(abs, parent(u_loop[n]) .- parent(u_gemm[n]))   < 1e-8 "expand! GEMM mismatch (scale=$scale, Nm=$Nm, component=$n)"
         end
 
         t_loop,   alloc_loop   = benchmark_kernel(() -> loop_expand!(u_loop, a_loop, modes))
-        t_nsloop, alloc_nsloop = benchmark_kernel(() -> NSEBase.expand!(u_nsloop, a_nsloop, NSEBase.LoopGalerkin()))
-        t_gemm,   alloc_gemm   = benchmark_kernel(() -> NSEBase.expand!(u_gemm,   a_gemm,   NSEBase.GemmGalerkin()))
+        t_nsloop, alloc_nsloop = benchmark_kernel(() -> ReSolverFlowsBase.expand!(u_nsloop, a_nsloop, ReSolverFlowsBase.LoopGalerkin()))
+        t_gemm,   alloc_gemm   = benchmark_kernel(() -> ReSolverFlowsBase.expand!(u_gemm,   a_gemm,   ReSolverFlowsBase.GemmGalerkin()))
 
         record!(results; scale, dims, op="expand", Nm, alg="LOOP",   time_s=t_loop,   alloc_bytes=alloc_loop)
         record!(results; scale, dims, op="expand", Nm, alg="NSLOOP", time_s=t_nsloop, alloc_bytes=alloc_nsloop)

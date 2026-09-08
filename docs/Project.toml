@@ -1,9 +1,9 @@
 [deps]
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
-NSEBase = "9778a910-ce4d-423e-92be-12991f0cf10c"
+ReSolverFlowsBase = "9778a910-ce4d-423e-92be-12991f0cf10c"
 
 [sources]
-NSEBase = {path = ".."}
+ReSolverFlowsBase = {path = ".."}
 
 [compat]
 Documenter = "1"

@@ -42,10 +42,10 @@
         M = rand(1:Ny)
         N = rand(1:4)
         modes = ntuple(_ -> zeros(ComplexF64, M, Ny, (Nx >> 1) + 1, Nz, Nt), N)
-        a  = NSEBase.ProjectedField(g,          modes)
-        ad = NSEBase.ProjectedField(gd, map(comp -> CUDA.cu(comp), modes))
+        a  = ReSolverFlowsBase.ProjectedField(g,          modes)
+        ad = ReSolverFlowsBase.ProjectedField(gd, map(comp -> CUDA.cu(comp), modes))
 
-        @test ad isa NSEBase.ProjectedField{<:CUDAExt.GPUGrid, <:NTuple{N, <:CuArray{ComplexF32}}, <:CuArray{ComplexF32}}
+        @test ad isa ReSolverFlowsBase.ProjectedField{<:CUDAExt.GPUGrid, <:NTuple{N, <:CuArray{ComplexF32}}, <:CuArray{ComplexF32}}
         @test size(ad) == (M, 8, 15, 15)
         @test typeof(CUDA.cu(a)) == typeof(ad)
     end

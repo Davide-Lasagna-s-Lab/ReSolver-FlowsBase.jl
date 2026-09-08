@@ -20,7 +20,7 @@
 #
 # NOTE: on a single node an overlap measures no faster than a blocking swap
 # (benchmarks/mpi_overlap.jl); it is not included in this implementation. See
-# https://github.com/Davide-Lasagna-s-Lab/NSEBase.jl/issues/21 for a discussion
+# https://github.com/Davide-Lasagna-s-Lab/ReSolverFlowsBase.jl/issues/21 for a discussion
 # on its efficacy.
 
 

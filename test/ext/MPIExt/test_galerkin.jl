@@ -1,7 +1,7 @@
 # Tests for the `project!` Galerkin override in
 # `MPIExt/src/galerkin.jl`.
 #
-# The override extends `NSEBase.project!` with an `MPI.Allreduce!` over
+# The override extends `ReSolverFlowsBase.project!` with an `MPI.Allreduce!` over
 # the grid communicator so each rank's partial weighted inner product is
 # summed into the global modal coefficients. We verify that the override
 # runs end-to-end and produces identical coefficients on every rank
@@ -13,10 +13,10 @@ import LinearAlgebra
 import MPI
 import Random
 
-using NSEBase,
+using ReSolverFlowsBase,
       FDGrids
 
-const MPIExt = Base.get_extension(NSEBase, :MPIExt)
+const MPIExt = Base.get_extension(ReSolverFlowsBase, :MPIExt)
 
 MPI.Initialized() || MPI.Init()
 
@@ -45,11 +45,11 @@ Ny_local = Ny ÷ nranks
 Random.seed!(0xc0ffee + rank)
 mode_shape = (NMODES, Ny_local, (Nx >> 1) + 1, Nz, Nt)
 modes_components = ntuple(_ -> randn(ComplexF64, mode_shape...), NCOMP)
-basis = NSEBase.ProjectedField(g, modes_components)
+basis = ReSolverFlowsBase.ProjectedField(g, modes_components)
 
 # Velocity field with rank-shared random parent data. Use a flat Vector
 # view for the Bcast so HaloArray-backed storage stays out of MPI's way.
-u = NSEBase.VectorField(g, NSEBase.FTField; N=NCOMP)
+u = ReSolverFlowsBase.VectorField(g, ReSolverFlowsBase.FTField; N=NCOMP)
 for n in 1:NCOMP
     flat = Vector{ComplexF64}(vec(randn(ComplexF64, size(parent(u[n]))...)))
     MPI.Bcast!(flat, 0, MPIExt.comm(g))
@@ -57,7 +57,7 @@ for n in 1:NCOMP
 end
 
 @testset "project! coefficients are rank-consistent                           " begin
-    a_local = NSEBase.project!(similar(basis), u)
+    a_local = ReSolverFlowsBase.project!(similar(basis), u)
 
     # Pull rank 0's coefficients and compare to each rank's local copy.
     a_root = Vector{ComplexF64}(vec(parent(a_local)))

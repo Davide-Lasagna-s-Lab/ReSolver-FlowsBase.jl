@@ -72,8 +72,8 @@ shift
 ## Inner products and norms
 
 ```@docs
-NSEBase.dot
-NSEBase.norm
+ReSolverFlowsBase.dot
+ReSolverFlowsBase.norm
 normdiff
 minnormdiff
 ```

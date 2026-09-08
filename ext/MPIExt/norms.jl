@@ -1,11 +1,11 @@
 # MPI-reduced inner product for decomposed grids.
 #
-# NSEBase's `LinearAlgebra.dot(u::FTField, v::FTField)` accumulates a
+# ReSolverFlowsBase's `LinearAlgebra.dot(u::FTField, v::FTField)` accumulates a
 # weighted sum over every inhomogeneous index this rank owns. On a
 # decomposed grid each rank owns only a slab, so the local accumulation
 # is a partial sum; `MPI.Allreduce` combines partial sums into the
 # global inner product on every rank. The `VectorField` overload in
-# NSEBase reduces to a sum over per-component scalar `dot` calls; each
+# ReSolverFlowsBase reduces to a sum over per-component scalar `dot` calls; each
 # call is already globally summed by the override below, so the vector
 # version is correct without further changes.
 #
@@ -18,7 +18,7 @@
 
 MPI-reduced weighted inner product of two distributed spectral fields.
 
-Each rank computes the same partial sum that NSEBase computes for a
+Each rank computes the same partial sum that ReSolverFlowsBase computes for a
 single-domain field, then `MPI.Allreduce` sums the partial values into
 the global inner product. Every rank returns the same value.
 
@@ -26,10 +26,10 @@ the global inner product. Every rank returns the same value.
 weights, and Hermitian-symmetry multipliers agree across ranks).
 """
 function LinearAlgebra.dot(u::F, v::F) where {F<:DecomposedFTField}
-    g = NSEBase.grid(u)
-    local_dot = NSEBase._dot(parent(u),
+    g = ReSolverFlowsBase.grid(u)
+    local_dot = ReSolverFlowsBase._dot(parent(u),
                              parent(v),
-                             NSEBase.weights(g),
-                             Val(NSEBase.fft_storage_dims(g)))
+                             ReSolverFlowsBase.weights(g),
+                             Val(ReSolverFlowsBase.fft_storage_dims(g)))
     return MPI.Allreduce(real(local_dot), MPI.SUM, comm(g))
 end

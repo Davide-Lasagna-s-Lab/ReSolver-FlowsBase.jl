@@ -48,7 +48,7 @@ end
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Approach B: single-pass with conditional weight
-# Mirrors the for_each_wavenumber-based implementation in NSEBase.
+# Mirrors the for_each_wavenumber-based implementation in ReSolverFlowsBase.
 # ──────────────────────────────────────────────────────────────────────────────
 function dot_conditional(a, b)
     s = 0.0

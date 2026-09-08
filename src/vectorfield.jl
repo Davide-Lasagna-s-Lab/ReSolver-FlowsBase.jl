@@ -9,7 +9,7 @@
 # The design separates concern of "multiple components" from "field data":
 # VectorField only manages component ordering; all arithmetic is delegated to
 # the underlying scalar fields through the broadcasting interface in
-# broadcasting.jl.  This makes it easy to extend NSEBase to 2D (N=2) or
+# broadcasting.jl.  This makes it easy to extend ReSolverFlowsBase to 2D (N=2) or
 # arbitrary-component flows without changing any core logic.
 
 """

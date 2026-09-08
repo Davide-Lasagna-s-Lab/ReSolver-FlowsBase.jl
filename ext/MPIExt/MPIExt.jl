@@ -4,8 +4,8 @@ import FDGrids
 import HaloArrays
 import LinearAlgebra
 import MPI
-import NSEBase
-using NSEBase: Forward, AdjointDiscrete, OperatorMode
+import ReSolverFlowsBase
+using ReSolverFlowsBase: Forward, AdjointDiscrete, OperatorMode
 
 include("decomposed.jl")
 include("types.jl")

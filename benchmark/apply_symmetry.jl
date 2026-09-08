@@ -27,8 +27,8 @@
 using BenchmarkTools
 using LinearAlgebra
 using Printf
-using NSEBase
-const apply_symmetry! = NSEBase.apply_symmetry!
+using ReSolverFlowsBase
+const apply_symmetry! = ReSolverFlowsBase.apply_symmetry!
 
 include("../test/fake.jl")
 include("../test/test_grids.jl")
@@ -48,8 +48,8 @@ end
 QuadGrid(Ny, Nx, Nz, Nt) = QuadGrid(Ny, Nx, Nz, Nt, ones(Ny))
 
 Base.size(g::QuadGrid)                      = (g.Ny, g.Nx, g.Nz, g.Nt)
-NSEBase.weights(g::QuadGrid)               = g.ws
-NSEBase.wavenumber_scale(::QuadGrid, ::Int) = 1.0
+ReSolverFlowsBase.weights(g::QuadGrid)               = g.ws
+ReSolverFlowsBase.wavenumber_scale(::QuadGrid, ::Int) = 1.0
 
 # ------------------------------------------------------------------ #
 # Grid sizes                                                          #

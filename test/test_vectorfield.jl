@@ -14,7 +14,7 @@
         u = VectorField(g, Field, N=2)
 
         @test length(u) == 2
-        @test NSEBase.grid(u) === g
+        @test ReSolverFlowsBase.grid(u) === g
         @test u[1] isa Field
         @test similar(u) isa VectorField{2, <:Field}
 

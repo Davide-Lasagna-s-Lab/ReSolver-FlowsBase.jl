@@ -27,7 +27,7 @@
 
 throw(error("This script is broken - needs updating for newer interface"))
 
-import FDGrids, HaloArrays, MPI, NSEBase, Printf
+import FDGrids, HaloArrays, MPI, ReSolverFlowsBase, Printf
 
 # ----- driver: spawn both mpiexec launches, then exit ----------------------- #
 if !isempty(ARGS) && ARGS[1] == "--driver"
@@ -44,7 +44,7 @@ if !isempty(ARGS) && ARGS[1] == "--driver"
     exit(0)
 end
 
-using NSEBase: init_requests!, wait_requests!,
+using ReSolverFlowsBase: init_requests!, wait_requests!,
                init_ddx!, init_ddy!, init_ddz!,
                complete_ddx!, complete_ddy!, complete_ddz!,
                init_laplacian!, complete_laplacian!,

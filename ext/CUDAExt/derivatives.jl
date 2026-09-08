@@ -1,24 +1,24 @@
 # GPU kernels for derivatives of FTFields wrapping on a GPUGrid.
 # 
 # These methods are extensions to the base packages spectral differentiation
-# components. The inhomogeneous derivatives are handled via `NSEBase._inhomogeneous_dd!`
-# which relies on the user implemented `NSEBase.derivative_matrix`. Any GPU
+# components. The inhomogeneous derivatives are handled via `ReSolverFlowsBase._inhomogeneous_dd!`
+# which relies on the user implemented `ReSolverFlowsBase.derivative_matrix`. Any GPU
 # specialisations of derivatives over non-transformed directions is assumed to handled
 # by the user defining the behaviour `mul!(out, A, u, ::Val{STORAGE_DIM})` for their
 # dirivative operator type `A`.
 
-NSEBase._spectral_dd!(out::F,
+ReSolverFlowsBase._spectral_dd!(out::F,
                         u::F,
                          ::Val{STORAGE_DIM},
-                     mode::NSEBase.OperatorMode=NSEBase.Forward()) where {STORAGE_DIM, F<:Union{GPUFTField, GPUProjectedField}} =
-    _cuda_spectral_dd!(out, u, Val(STORAGE_DIM), Val(NSEBase.rfft_storage_dim(NSEBase.grid(u))), mode)
+                     mode::ReSolverFlowsBase.OperatorMode=ReSolverFlowsBase.Forward()) where {STORAGE_DIM, F<:Union{GPUFTField, GPUProjectedField}} =
+    _cuda_spectral_dd!(out, u, Val(STORAGE_DIM), Val(ReSolverFlowsBase.rfft_storage_dim(ReSolverFlowsBase.grid(u))), mode)
 
-function _cuda_spectral_dd!(out, u, ::Val{STORAGE_DIM}, ::Val{RFFT_DIM}, mode::NSEBase.OperatorMode) where {STORAGE_DIM, RFFT_DIM}
+function _cuda_spectral_dd!(out, u, ::Val{STORAGE_DIM}, ::Val{RFFT_DIM}, mode::ReSolverFlowsBase.OperatorMode) where {STORAGE_DIM, RFFT_DIM}
     # kernel arguments
     sz     = Int32.(size(u))
     nelem  = Int32(prod(sz))
-    _ddx_sign  = mode isa NSEBase.AdjointDiscrete ? -1im*one(real(eltype(u))) : 1im*one(real(eltype(u)))
-    _ddx_scale = NSEBase.wavenumber_scale(NSEBase.grid(u), STORAGE_DIM)
+    _ddx_sign  = mode isa ReSolverFlowsBase.AdjointDiscrete ? -1im*one(real(eltype(u))) : 1im*one(real(eltype(u)))
+    _ddx_scale = ReSolverFlowsBase.wavenumber_scale(ReSolverFlowsBase.grid(u), STORAGE_DIM)
 
     # launch kernel
     kernel_args = (parent(out),
@@ -68,22 +68,22 @@ direction of the array.
 end
 
 
-NSEBase._add_homogeneous_laplacian!(out::F, u::F) where {F<:GPUField} =
+ReSolverFlowsBase._add_homogeneous_laplacian!(out::F, u::F) where {F<:GPUField} =
     _cuda_add_homogeneous_laplacian!(out, u)
 
 function _cuda_add_homogeneous_laplacian!(out, u)
     # kernel arguments
     sz     = Int32.(size(u))
     nelem  = Int32(prod(sz))
-    scales = map(d -> NSEBase.wavenumber_scale(NSEBase.grid(u), d), NSEBase.spatial_fft_storage_dims(NSEBase.grid(u)))
+    scales = map(d -> ReSolverFlowsBase.wavenumber_scale(ReSolverFlowsBase.grid(u), d), ReSolverFlowsBase.spatial_fft_storage_dims(ReSolverFlowsBase.grid(u)))
 
     # launch kernel
     kernel_args = (parent(out),
                    parent(u),
                    sz, nelem,
                    scales,
-                   Val(Int32.(NSEBase.spatial_fft_storage_dims(NSEBase.grid(u)))),
-                   Val(Int32(NSEBase.rfft_storage_dim(NSEBase.grid(u)))))
+                   Val(Int32.(ReSolverFlowsBase.spatial_fft_storage_dims(ReSolverFlowsBase.grid(u)))),
+                   Val(Int32(ReSolverFlowsBase.rfft_storage_dim(ReSolverFlowsBase.grid(u)))))
     nthreads = _get_launch_params(_add_homogeneous_laplacian_kernel!, kernel_args...)
     @cuda threads=nthreads blocks=Int32(cld(nelem, nthreads)) _add_homogeneous_laplacian_kernel!(kernel_args...)
 

@@ -10,10 +10,10 @@ using Test
 import HaloArrays
 import MPI
 
-using NSEBase,
+using ReSolverFlowsBase,
       FDGrids
 
-const MPIExt = Base.get_extension(NSEBase, :MPIExt)
+const MPIExt = Base.get_extension(ReSolverFlowsBase, :MPIExt)
 
 MPI.Initialized() || MPI.Init()
 
@@ -31,28 +31,28 @@ g        = distributed(g_parent, base_comm;
                         decomposed_physical_dims=(:y,), nprocesses=(nranks,), nhalo=(NHALO,))
 
 @testset "Field allocation picks HaloArray storage when nhalo > 0             " begin
-    u = NSEBase.Field(g)
+    u = ReSolverFlowsBase.Field(g)
     @test parent(u) isa HaloArrays.HaloArray
     @test HaloArrays.nhalo(parent(u)) == MPIExt.nhalo(g)
     @test all(parent(u) .== 0)
 end
 
 @testset "FTField allocation picks HaloArray storage when nhalo > 0           " begin
-    uhat = NSEBase.FTField(g)
+    uhat = ReSolverFlowsBase.FTField(g)
     @test parent(uhat) isa HaloArrays.HaloArray
     @test HaloArrays.nhalo(parent(uhat)) == MPIExt.nhalo(g)
     @test all(parent(uhat) .== 0)
 end
 
 @testset "VectorField allocation propagates halo policy                       " begin
-    q = NSEBase.VectorField(g, NSEBase.FTField; N=3)
+    q = ReSolverFlowsBase.VectorField(g, ReSolverFlowsBase.FTField; N=3)
     @test length(q) == 3
     @test all(n -> parent(q[n]) isa HaloArrays.HaloArray, 1:3)
 end
 
 @testset "init_requests! on Field / FTField                                   " begin
-    u    = NSEBase.Field(g)
-    uhat = NSEBase.FTField(g)
+    u    = ReSolverFlowsBase.Field(g)
+    uhat = ReSolverFlowsBase.FTField(g)
 
     reqs_u    = MPIExt.init_requests!(u)
     reqs_uhat = MPIExt.init_requests!(uhat)
@@ -62,7 +62,7 @@ end
 end
 
 @testset "init_requests! on VectorField returns nested request tuple          " begin
-    q = NSEBase.VectorField(g, NSEBase.FTField; N=2)
+    q = ReSolverFlowsBase.VectorField(g, ReSolverFlowsBase.FTField; N=2)
     reqs = MPIExt.init_requests!(q)
     @test reqs isa Tuple && length(reqs) == 2
     @test MPIExt.wait_requests!(reqs) === nothing
@@ -72,7 +72,7 @@ if nranks > 1
     @testset "halo requests propagates owned values to neighbouring ranks         " begin
         # Tag each rank's owned interior with its rank number; the lower and
         # upper halo cells should contain the neighbours' values after exchange.
-        u = NSEBase.Field(g)
+        u = ReSolverFlowsBase.Field(g)
         a = parent(u)
         fill!(parent(a), 0)  # zero the dense storage, including halo cells
         a .= Float64(rank + 1)

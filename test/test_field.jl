@@ -14,7 +14,7 @@
         fun(x, y) = 1 + 2x - cos(y)
         u = Field(g, fun)
 
-        @test NSEBase.grid(u) === g
+        @test ReSolverFlowsBase.grid(u) === g
         @test size(u) == size(g)
         @test parent(u) ≈ fun.(xpts, ypts)
     end
@@ -28,17 +28,17 @@
         v = copy(u)
         @test v isa Field
         @test v !== u
-        @test NSEBase.grid(v) === g
+        @test ReSolverFlowsBase.grid(v) === g
         @test parent(v) == parent(u)
 
         z = zero(u)
         @test z isa Field
-        @test NSEBase.grid(z) === g
+        @test ReSolverFlowsBase.grid(z) === g
         @test all(iszero, parent(z))
 
         s = similar(u)
         @test s isa Field
-        @test NSEBase.grid(s) === g
+        @test ReSolverFlowsBase.grid(s) === g
         @test size(s) == size(u)
     end
 end
