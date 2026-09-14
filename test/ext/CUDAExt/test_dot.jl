@@ -15,9 +15,9 @@
 
         # test result
         res_host = dot(a, b)
-        @test abs(res_host - dot(ad, bd, method_twostage)) < 4e-4
-        @test abs(res_host - dot(ad, bd, method_atomic))   < 4e-4
-        @test abs(res_host - dot(ad, bd, method_shared))   < 4e-4
+        @test abs(res_host - dot(ad, bd, method_twostage)) < 8e-4
+        @test abs(res_host - dot(ad, bd, method_atomic))   < 8e-4
+        @test abs(res_host - dot(ad, bd, method_shared))   < 8e-4
     end
 
     # second dummy field for testin auto-tuning

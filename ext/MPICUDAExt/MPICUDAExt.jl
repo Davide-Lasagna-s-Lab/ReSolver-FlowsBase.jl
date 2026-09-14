@@ -67,12 +67,12 @@ end
 
 
 ReSolverFlowsBase._spectral_dd!(out::F,
-                        u::F,
-                         ::Val{STORAGE_DIM},
-                     mode::ReSolverFlowsBase.OperatorMode=ReSolverFlowsBase.Forward()) where {
-                    STORAGE_DIM,
-                    G<:DecomposedGPUGrid,
-                    F<:Union{ReSolverFlowsBase.FTField{G}, ReSolverFlowsBase.ProjectedField{G}}} =
+                                u::F,
+                                 ::Val{STORAGE_DIM},
+                             mode::ReSolverFlowsBase.OperatorMode=ReSolverFlowsBase.Forward()) where {
+                            STORAGE_DIM,
+                            G<:DecomposedGPUGrid,
+                            F<:Union{ReSolverFlowsBase.FTField{G}, ReSolverFlowsBase.ProjectedField{G}}} =
     CUDAExt._cuda_spectral_dd!(out, u, Val(STORAGE_DIM), Val(ReSolverFlowsBase.rfft_storage_dim(ReSolverFlowsBase.grid(u))), mode)
 
 ReSolverFlowsBase._add_homogeneous_laplacian!(out::F, u::F) where {F<:ReSolverFlowsBase.FTField{<:DecomposedGPUGrid}} =
@@ -80,8 +80,8 @@ ReSolverFlowsBase._add_homogeneous_laplacian!(out::F, u::F) where {F<:ReSolverFl
 
 
 function ReSolverFlowsBase.project!(a::ReSolverFlowsBase.ProjectedField{G},
-                          u::ReSolverFlowsBase.VectorField{N, <:ReSolverFlowsBase.FTField{G}},
-                     method::CUDAExt.ProjectMethod=CUDAExt.project_method(a, u)) where {N, G<:DecomposedGPUGrid}
+                                    u::ReSolverFlowsBase.VectorField{N, <:ReSolverFlowsBase.FTField{G}},
+                               method::CUDAExt.ProjectMethod=CUDAExt.project_method(a, u)) where {N, G<:DecomposedGPUGrid}
     CUDAExt._project!(a, u, method)
 
     # Sum the per-rank partial projections into the global modal coefficients
@@ -91,8 +91,14 @@ function ReSolverFlowsBase.project!(a::ReSolverFlowsBase.ProjectedField{G},
 end
 
 ReSolverFlowsBase.expand!(u::ReSolverFlowsBase.VectorField{N, <:ReSolverFlowsBase.FTField{G}},
-                a::ReSolverFlowsBase.ProjectedField{G},
-           method::CUDAExt.ExpandMethod=CUDAExt.expand_method(u, a)) where {N, G<:DecomposedGPUGrid} =
+                          a::ReSolverFlowsBase.ProjectedField{G},
+                     method::CUDAExt.ExpandMethod=CUDAExt.expand_method(u, a)) where {N, G<:DecomposedGPUGrid} =
     CUDAExt._expand!(u, a, method)
+
+
+LinearAlgebra.dot(a::ReSolverFlowsBase.ProjectedField{G},
+                  b::ReSolverFlowsBase.ProjectedField{G},
+             method::CUDAExt.DotMethod=CUDAExt.dot_method(a)) where {G<:DecomposedGPUGrid} =
+    CUDAExt._dot(parent(a), parent(b), method)
 
 end

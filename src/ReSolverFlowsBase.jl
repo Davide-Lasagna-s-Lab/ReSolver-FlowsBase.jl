@@ -24,7 +24,7 @@ export ProjectedField, modes, project!, project, expand!, expand
 export LoopGalerkin, GemmGalerkin
 export dd!, ddx!, ddy!, ddz!, ddt!
 export laplacian!
-export shift!, shift, normdiff, minnormdiff
+export shift!, shift, normdiff, minnormdiff, dot, norm
 export save_grid, load_grid, save_field, load_field
 export FarazmandWeight
 export CartesianPrimitive3DNSE, CartesianPrimitive3DLNSE

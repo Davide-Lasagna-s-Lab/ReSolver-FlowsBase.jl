@@ -52,7 +52,7 @@ struct DotTwoStage{A} <: DotMethod
         new{typeof(weights)}((weights, intermediate))
     end
 end
-DotTwoStage(a::GPUProjectedField) = DotTwoStage(size(a), ReSolverFlowsBase.fft_storage_dims(ReSolverFlowsBase.grid(a)), real(eltype(a)))
+DotTwoStage(a::ReSolverFlowsBase.ProjectedField) = DotTwoStage(size(a), ReSolverFlowsBase.fft_storage_dims(ReSolverFlowsBase.grid(a)), real(eltype(a)))
 
 """
     DotAtomic <: DotMethod
@@ -90,7 +90,7 @@ struct DotAtomic{RFFT_DIM, D, A} <: DotMethod
         sz::NTuple{D, Int32}
      nelem::Int32
 
-    function DotAtomic(a::GPUProjectedField)
+    function DotAtomic(a::ReSolverFlowsBase.ProjectedField)
         result = CUDA.zeros(real(eltype(a)), 1)
         sz = Int32.(size(a))
         rfft_dim = ReSolverFlowsBase.rfft_storage_dim(ReSolverFlowsBase.grid(a))
@@ -141,7 +141,7 @@ struct DotShared{THREADS, RFFT_DIM, D, A} <: DotMethod
         sz::NTuple{D, Int32}
      nelem::Int32
 
-    function DotShared(a::GPUProjectedField)
+    function DotShared(a::ReSolverFlowsBase.ProjectedField)
         pa = parent(a)
         result = CUDA.zeros(real(eltype(a)), 1)
         rfft_dim = ReSolverFlowsBase.rfft_storage_dim(ReSolverFlowsBase.grid(a))
@@ -175,7 +175,7 @@ autotuning if this type has not been seen before. Results are cached in
 
     dot_method(a) -> cached_method or autotune_dot(a)
 """
-function dot_method(a::GPUProjectedField)
+function dot_method(a::ReSolverFlowsBase.ProjectedField)
     get!(DOT_METHODS, typeof(a)) do
         autotune_dot(a)
     end
@@ -196,7 +196,7 @@ controlled via [`set_tuning_samples`](@ref).
 
     autotune_dot(a) -> best::DotMethod
 """
-function autotune_dot(a::GPUProjectedField)
+function autotune_dot(a::ReSolverFlowsBase.ProjectedField)
     b = similar(a)  # dummy field for benchmarking
 
     # Construct all candidate methods
@@ -249,7 +249,7 @@ end
 
 See also: [`reset_dot_cache!`](@ref)
 """
-function ReSolverFlowsBase.initialise_dot!(a::GPUProjectedField)
+function ReSolverFlowsBase.initialise_dot!(a::ReSolverFlowsBase.ProjectedField)
     dot_method(a)  # triggers autotune and caches result
     return nothing
 end
@@ -273,7 +273,7 @@ reset_dot_cache!(a)    # clear only the method cached for `typeof(a)`
 See also: [`initialise_dot!`](@ref)
 """
 ReSolverFlowsBase.reset_dot_cache!() = empty!(DOT_METHODS)
-ReSolverFlowsBase.reset_dot_cache!(::P) where {P<:GPUProjectedField} = delete!(DOT_METHODS, P)
+ReSolverFlowsBase.reset_dot_cache!(::P) where {P<:ReSolverFlowsBase.ProjectedField} = delete!(DOT_METHODS, P)
 
 
 # ------------------------------- #
