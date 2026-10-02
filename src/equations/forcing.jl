@@ -1,4 +1,12 @@
-# Useful forcing constructs.
+# Body forces, called as `force(out, u, mode)` and adding their contribution
+# to `out`.
+#
+# `NoForce` is the default body-force callable: it receives `(out, u, mode)` and
+# returns `out` unchanged, imposing no additional forcing.
+#
+# `CompoundForcing` chains multiple body-force callables in sequence.  The call
+# is unrolled at compile time via `@nexprs` so that dynamic dispatch is avoided
+# even when the individual force types differ.
 
 """
     NoForce

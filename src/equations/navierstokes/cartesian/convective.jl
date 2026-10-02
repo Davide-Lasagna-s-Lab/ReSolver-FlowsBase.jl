@@ -1,4 +1,4 @@
-# Convective form of the advection, Cartesian geometry:
+# Convective form of the nonlinearity, Cartesian formulation:
 #
 #     B(a, b) = -(a·∇) b
 #
@@ -23,7 +23,11 @@ _workspace_sizes(::Cartesian{2}, ::Convective) = (3, 3, 3)
 # ---------------------------------------------------------------------------- #
 # linearised state: U, ∂U/∂x, ∂U/∂y, ∂U/∂z                                     #
 # ---------------------------------------------------------------------------- #
-function fill_linearised_state!(state, u, ::Cartesian{3}, ::Convective, work)
+function fill_linearised_state!(state::Vector{<:VectorField{3}},
+                                    u::VectorField{3},
+                                     ::Cartesian{3},
+                                     ::Convective,
+                                 work::Workspace)
     U, dUdx, dUdy, dUdz = state
     dudx, dudy, dudz    = work.scache
 
@@ -45,7 +49,12 @@ end
 # ---------------------------------------------------------------------------- #
 # nonlinear: -(u·∇)u                                                           #
 # ---------------------------------------------------------------------------- #
-function advection!(out, u, ::Nonlinear, ::Cartesian{3}, ::Convective, work)
+function advection!( out::VectorField{3},
+                       u::VectorField{3},
+                        ::Nonlinear,
+                        ::Cartesian{3},
+                        ::Convective,
+                    work::Workspace)
     dudx, dudy, dudz    = work.scache
     U, dUdx, dUdy, dUdz = work.pcache
 
@@ -72,7 +81,12 @@ end
 # ---------------------------------------------------------------------------- #
 # linearised: -(U·∇)v - (v·∇)U                                                 #
 # ---------------------------------------------------------------------------- #
-function advection!(out, v, ::Linearised, ::Cartesian{3}, ::Convective, work)
+function advection!( out::VectorField{3},
+                       v::VectorField{3},
+                        ::Linearised,
+                        ::Cartesian{3},
+                        ::Convective,
+                    work::Workspace)
     # assumes linearise_about! has been called before this function
     U, dUdx, dUdy, dUdz = work.linearised_state
     dvdx, dvdy, dvdz    = work.scache
@@ -102,7 +116,12 @@ end
 # ---------------------------------------------------------------------------- #
 # discrete adjoint: -∇⁺·(U ⊗ w) - (∇U)ᵀ w                                      #
 # ---------------------------------------------------------------------------- #
-function advection!(out, w, ::AdjointDiscrete, ::Cartesian{3}, ::Convective, work)
+function advection!( out::VectorField{3},
+                       w::VectorField{3},
+                        ::AdjointDiscrete,
+                        ::Cartesian{3},
+                        ::Convective,
+                    work::Workspace)
     # assumes linearise_about! has been called before this function
     U, dUdx, dUdy, dUdz = work.linearised_state
     u1w, u2w, u3w, tmp  = work.scache
@@ -145,7 +164,12 @@ end
 # ---------------------------------------------------------------------------- #
 # continuous adjoint: +(U·∇)w - (∇U)ᵀ w                                        #
 # ---------------------------------------------------------------------------- #
-function advection!(out, w, ::AdjointContinuous, ::Cartesian{3}, ::Convective, work)
+function advection!( out::VectorField{3},
+                       w::VectorField{3},
+                        ::AdjointContinuous,
+                        ::Cartesian{3},
+                        ::Convective,
+                    work::Workspace)
     # assumes linearise_about! has been called before this function
     U, dUdx, dUdy, dUdz = work.linearised_state
     dwdx, dwdy, dwdz    = work.scache
@@ -188,7 +212,11 @@ end
 # ---------------------------------------------------------------------------- #
 # linearised state: U, ∂U/∂x, ∂U/∂y                                            #
 # ---------------------------------------------------------------------------- #
-function fill_linearised_state!(state, u, ::Cartesian{2}, ::Convective, work)
+function fill_linearised_state!(state::Vector{<:VectorField{2}},
+                                    u::VectorField{2},
+                                     ::Cartesian{2},
+                                     ::Convective,
+                                 work::Workspace)
     U, dUdx, dUdy = state
     dudx, dudy    = work.scache
 
@@ -208,7 +236,12 @@ end
 # ---------------------------------------------------------------------------- #
 # nonlinear: -(u·∇)u                                                           #
 # ---------------------------------------------------------------------------- #
-function advection!(out, u, ::Nonlinear, ::Cartesian{2}, ::Convective, work)
+function advection!( out::VectorField{2},
+                       u::VectorField{2},
+                        ::Nonlinear,
+                        ::Cartesian{2},
+                        ::Convective,
+                    work::Workspace)
     dudx, dudy    = work.scache
     U, dUdx, dUdy = work.pcache
 
@@ -233,7 +266,12 @@ end
 # ---------------------------------------------------------------------------- #
 # linearised: -(U·∇)v - (v·∇)U                                                 #
 # ---------------------------------------------------------------------------- #
-function advection!(out, v, ::Linearised, ::Cartesian{2}, ::Convective, work)
+function advection!( out::VectorField{2},
+                       v::VectorField{2},
+                        ::Linearised,
+                        ::Cartesian{2},
+                        ::Convective,
+                    work::Workspace)
     # assumes linearise_about! has been called before this function
     U, dUdx, dUdy = work.linearised_state
     dvdx, dvdy    = work.scache
@@ -261,7 +299,12 @@ end
 # ---------------------------------------------------------------------------- #
 # discrete adjoint: -∇⁺·(U ⊗ w) - (∇U)ᵀ w                                      #
 # ---------------------------------------------------------------------------- #
-function advection!(out, w, ::AdjointDiscrete, ::Cartesian{2}, ::Convective, work)
+function advection!( out::VectorField{2},
+                       w::VectorField{2},
+                        ::AdjointDiscrete,
+                        ::Cartesian{2},
+                        ::Convective,
+                    work::Workspace)
     # assumes linearise_about! has been called before this function
     U, dUdx, dUdy = work.linearised_state
     u1w, u2w, tmp = work.scache
@@ -300,7 +343,12 @@ end
 # ---------------------------------------------------------------------------- #
 # continuous adjoint: +(U·∇)w - (∇U)ᵀ w                                        #
 # ---------------------------------------------------------------------------- #
-function advection!(out, w, ::AdjointContinuous, ::Cartesian{2}, ::Convective, work)
+function advection!( out::VectorField{2},
+                       w::VectorField{2},
+                        ::AdjointContinuous,
+                        ::Cartesian{2},
+                        ::Convective,
+                    work::Workspace)
     # assumes linearise_about! has been called before this function
     U, dUdx, dUdy = work.linearised_state
     dwdx, dwdy    = work.scache

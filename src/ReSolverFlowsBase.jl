@@ -27,9 +27,10 @@ export laplacian!
 export shift!, shift, normdiff, minnormdiff, dot, norm
 export save_grid, load_grid, save_field, load_field
 export FarazmandWeight
-export Forward, Nonlinear, Linearised, AdjointContinuous, AdjointDiscrete, AnyLinear, Mode, OperatorMode
+export Forward, Nonlinear, Linearised, AdjointContinuous, AdjointDiscrete, AnyLinear, AbstractEquationMode, OperatorMode
 export NoForce, CompoundForcing
-export NavierStokes, Cartesian, Convective, Rotational, ncomp, linearise_about!
+export NavierStokes, Cartesian, Cylindrical,
+       AbstractNonlinearityForm, Convective, Rotational, ncomp, linearise_about!
 export Workspace
 export ProjectedEquation, construct_equations
 
@@ -51,9 +52,13 @@ include("derivatives.jl")
 include("io.jl")
 include("equations/forcing.jl")
 include("equations/workspace.jl")
-include("equations/geometries.jl")
-include("equations/navierstokes.jl")
-include("equations/navierstokes_convective.jl")
+include("equations/formulations.jl")
+include("equations/navierstokes/nonlinearityforms.jl")
+include("equations/navierstokes/navierstokes.jl")
+include("equations/navierstokes/cartesian/convective.jl")
+include("equations/navierstokes/cartesian/rotational.jl")
+include("equations/navierstokes/cylindrical/convective.jl")
+include("equations/navierstokes/cylindrical/rotational.jl")
 include("equations/projectedequation.jl")
 include("equations/construct.jl")
 

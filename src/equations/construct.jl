@@ -2,9 +2,10 @@
 # single shared workspace.
 
 """
-    construct_equations(grid, Re, base_flow, geometry=Cartesian(3);
-                        form=Convective(), force=NoForce(), mode=AdjointDiscrete(),
-                        flags=FFTW.EXHAUSTIVE, dealias=true) -> (nl, lin, adj)
+    construct_equations(grid, Re, base_flow, formulation=Cartesian(3);
+                        nlform=Convective(), force=NoForce(),
+                        mode=AdjointDiscrete(), flags=FFTW.EXHAUSTIVE,
+                        dealias=true) -> (nl, lin, adj)
 
 Build the projected nonlinear, linearised and adjoint [`NavierStokes`](@ref)
 operators, each a [`ProjectedEquation`](@ref):
@@ -18,7 +19,8 @@ lin(out, b)               # P L E b
 adj(out, b)               # P L* E b
 ```
 
-`geometry` is e.g. `Cartesian(3)` or `Cartesian(2)`; `form` the advection form,
+`formulation` is e.g. `Cartesian(3)` or `Cartesian(2)`; the nonlinearity form
+`nlform` is
 [`Convective`](@ref) or [`Rotational`](@ref).
 `base_flow` holds one entry per velocity component, either a vector of values
 at the inhomogeneous grid points or `nothing`. `mode` selects the adjoint:
@@ -30,8 +32,8 @@ share one [`Workspace`](@ref) and one pair of projection caches.
 function construct_equations(grid::AbstractGrid,
                              Re,
                              base_flow,
-                             geometry=Cartesian(3);
-                             form=Convective(),
+                             formulation=Cartesian(3);
+                             nlform=Convective(),
                              force=NoForce(),
                              mode=AdjointDiscrete(),
                              flags=FFTW.EXHAUSTIVE,
@@ -42,16 +44,16 @@ function construct_equations(grid::AbstractGrid,
         throw(ArgumentError("mode must be AdjointDiscrete or AdjointContinuous"))
 
     # ---- shared workspace and projection caches ----
-    N = ncomp(geometry)
-    nstate, nspectral, nphysical = _workspace_sizes(geometry, form)
+    N = ncomp(formulation)
+    nstate, nspectral, nphysical = _workspace_sizes(formulation, nlform)
 
     work  = Workspace(grid, N; nstate, nspectral, nphysical, flags, dealias)
     cache = (VectorField(grid, FTField, N=N), VectorField(grid, FTField, N=N))
 
     # ---- the three operators ----
-    nl  = NavierStokes(Nonlinear(),  geometry, form, work, Re; force)
-    lin = NavierStokes(Linearised(), geometry, form, work, Re; force)
-    adj = NavierStokes(mode,         geometry, form, work, Re; force)
+    nl  = NavierStokes(Nonlinear(),  formulation, nlform, work, Re; force)
+    lin = NavierStokes(Linearised(), formulation, nlform, work, Re; force)
+    adj = NavierStokes(mode,         formulation, nlform, work, Re; force)
 
     # ---- projected wrappers ----
     return (nl  = ProjectedEquation(nl,  base_flow, cache),

@@ -1,13 +1,14 @@
-# Navier–Stokes operator, generic over mode, geometry and form of the advection.
+# Navier–Stokes operator, generic over mode, formulation and nonlinearity form.
 #
 #     N(u)  = ν∇²u  + B(u, u)                  + f(u)      Nonlinear
 #     L v   = ν∇²v  + B(U, v) + B(v, U)        + f(v)      Linearised
 #     L* w  = ν∇²⁺w + B(U, ·)* w + B(·, U)* w  + f*(w)     AdjointDiscrete / AdjointContinuous
 #
-# The call method below is written once. A geometry (geometries.jl) provides
-# `viscous!`; each geometry–form pair provides `advection!`,
-# `fill_linearised_state!` and the workspace sizes (navierstokes_<form>.jl). Kernels take the fields explicitly, so other systems
-# (e.g. Boussinesq, MHD) can reuse them on the velocity components.
+# The call method below is written once. A formulation (formulations.jl)
+# provides `viscous!`; each formulation–nonlinearity form pair provides
+# `advection!`, `fill_linearised_state!` and the workspace sizes
+# (navierstokes/<formulation>/<form>.jl). Kernels take the fields explicitly, so other
+# systems (e.g. Boussinesq, MHD) can reuse them on the velocity components.
 #
 # NOTE — possible future generalisation: a "quadratic system" framework.
 # Navier–Stokes, Boussinesq (state u, θ) and MHD (state u, b) all have the form
@@ -19,26 +20,6 @@
 # by transposing A and the two partial maps of B. A system would supply only A,
 # B and its transposes; the skeleton below, the workspace and the projection
 # would be shared. Worth implementing once a second system is needed.
-
-
-# ============================================================================ #
-# Advection forms                                                              #
-# ============================================================================ #
-
-"""
-    Convective()
-
-Convective form of the advection, `-(u·∇)u`.
-"""
-struct Convective end
-
-"""
-    Rotational()
-
-Rotational form of the advection, `u × ω` with `ω = ∇ × u`. It differs from the
-convective form by the gradient `∇(|u|²/2)`, absorbed in the pressure.
-"""
-struct Rotational end
 
 
 # ============================================================================ #
@@ -59,30 +40,34 @@ _force_mode(mode::Union{AdjointDiscrete, AdjointContinuous}) = mode
 # ============================================================================ #
 
 """
-    NavierStokes(mode, geometry, form, work, Re; force=NoForce())
+    NavierStokes(mode, formulation, nlform, work, Re; force=NoForce())
 
 Navier–Stokes operator in `mode` ([`Nonlinear`](@ref), [`Linearised`](@ref),
-[`AdjointDiscrete`](@ref) or [`AdjointContinuous`](@ref)), for a `geometry`
-such as [`Cartesian`](@ref) and an advection `form` ([`Convective`](@ref) or
-[`Rotational`](@ref)). `work` is
-the shared [`Workspace`](@ref). Called as `op(t, u, out)` on spectral
-`VectorField`s; the linearised modes act about the point set by
-[`linearise_about!`](@ref).
+[`AdjointDiscrete`](@ref) or [`AdjointContinuous`](@ref)), for a `formulation`
+such as [`Cartesian`](@ref) and a nonlinearity form `nlform`
+([`Convective`](@ref) or [`Rotational`](@ref)). `work` is the shared
+[`Workspace`](@ref). Called as `op(t, u, out)` on spectral `VectorField`s; the
+linearised modes act about the point set by [`linearise_about!`](@ref).
 """
-mutable struct NavierStokes{MODE, GEOM, FORM, T, W, BF}
-             Re::T    # Reynolds number
-    const  mode::MODE # Nonlinear, Linearised, AdjointDiscrete or AdjointContinuous
-    const  geom::GEOM # geometry, e.g. Cartesian{3}
-    const  form::FORM # advection form, Convective or Rotational
-    const  work::W    # shared Workspace: plans, scratch, linearised state
-    const force::BF   # body force, called as force(out, u, mode)
+struct NavierStokes{MODE, FORMULATION, NLFORM<:AbstractNonlinearityForm, T, W, BF}
+             Re::T           # Reynolds number
+           mode::MODE        # Nonlinear, Linearised, AdjointDiscrete or AdjointContinuous
+    formulation::FORMULATION # e.g. Cartesian(3), Cylindrical(grid)
+         nlform::NLFORM      # nonlinearity form, Convective() or Rotational()
+           work::W           # shared Workspace: plans, scratch, linearised state
+          force::BF          # body force, called as force(out, u, mode)
 end
 
-function NavierStokes(mode::Mode, geom, form, work::Workspace, Re; force=NoForce())
-    return NavierStokes(_realtype(work)(Re), mode, geom, form, work, force)
+function NavierStokes(mode::AbstractEquationMode,
+                      formulation,
+                      nlform::AbstractNonlinearityForm,
+                      work::Workspace,
+                      Re;
+                      force=NoForce())
+    return NavierStokes(_realtype(work)(Re), mode, formulation, nlform, work, force)
 end
 
-ncomp(op::NavierStokes) = ncomp(op.geom)
+ncomp(op::NavierStokes) = ncomp(op.formulation)
 
 
 # ---------------------------------------------------------------------------- #
@@ -91,10 +76,10 @@ ncomp(op::NavierStokes) = ncomp(op.geom)
 function (op::NavierStokes)(::Real, u::VectorField, out::VectorField)
 
     # ---- viscous term ----
-    viscous!(out, u, op.mode, op.geom, op.Re)
+    viscous!(out, u, op.mode, op.formulation, op.Re, op.work)
 
-    # ---- advection, form- and mode-specific ----
-    advection!(out, u, op.mode, op.geom, op.form, op.work)
+    # ---- advection, specific to the nonlinearity form and mode ----
+    advection!(out, u, op.mode, op.formulation, op.nlform, op.work)
 
     # ---- body force ----
     op.force(out, u, _force_mode(op.mode))
@@ -106,7 +91,9 @@ end
 # ---------------------------------------------------------------------------- #
 # linearisation point                                                          #
 # ---------------------------------------------------------------------------- #
-function linearise_about!(op::NavierStokes, u::VectorField)
-    fill_linearised_state!(op.work.linearised_state, u, op.geom, op.form, op.work)
-    return op
-end
+linearise_about!(op::NavierStokes, u::VectorField) =
+    (fill_linearised_state!(op.work.linearised_state,
+                            u,
+                            op.formulation,
+                            op.nlform,
+                            op.work); op)
