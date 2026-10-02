@@ -1,6 +1,6 @@
 # Spectral differentiation operators for FTField, ProjectedField, and VectorField.
 #
-# Entry points are `ddx!`, `ddy!`, `ddz!`, `ddt!` — one per physical coordinate.
+# Entry points are `ddx1!`, `ddx2!`, `ddx3!`, `ddt!` — one per coordinate.
 # Each resolves its direction to a compile-time `Val{STORAGE_DIM}` via
 # `physical_to_storage_dim` and delegates to `dd!(out, u, ::Val{STORAGE_DIM})`.
 #
@@ -49,8 +49,8 @@ with respect to the quadrature-weighted inner product of [`dot`](@ref),
 `D⁺ = W⁻¹DᵀW`.
 
 ```julia
-ddx!(out, u)                     # ∂x u
-ddx!(out, u, DiscreteAdjoint())  # ∂x⁺ u
+ddx1!(out, u)                     # ∂u/∂x1
+ddx1!(out, u, DiscreteAdjoint())  # its discrete adjoint
 ```
 """
 struct DiscreteAdjoint <: AbstractDerivativeMode end
@@ -60,26 +60,30 @@ struct DiscreteAdjoint <: AbstractDerivativeMode end
 derivative_matrix(g::AbstractGrid, ::Integer, ::Val, ::AbstractDerivativeMode) = throw(NotImplementedError(g))
 
 """
-    ddx!(out, u, [DiscreteAdjoint()]) -> out
-Differentiate `u` along physical direction `x`, storing the result in `out`.
-The wrapper resolves the direction to a `Val{STORAGE_DIM}` at the
-call site and delegates to the low-level [`dd!`](@ref)`(out, u, ::Val)` primitive.
+    ddx1!(out, u, [DiscreteAdjoint()]) -> out
+
+Differentiate `u` along the first spatial coordinate `x1`, storing the result
+in `out`. The wrapper resolves the coordinate to a `Val{STORAGE_DIM}` at the
+call site and delegates to the low-level [`dd!`](@ref)`(out, u, ::Val)`
+primitive. Coordinate names (x, y, z or r, θ, z, ...) are given as aliases by
+the equations built on the grid.
 
 With [`DiscreteAdjoint`](@ref) the discrete adjoint of the derivative is
 applied. The tag participates in dispatch, so each variant compiles to a
 concrete operator with no runtime branch.
 
-For an absent direction (e.g. `:z` on a 2D grid) the call is a compile-time no-op.
+For an absent coordinate (e.g. `x3` on a 2D grid) the call is a compile-time
+no-op.
 """
-ddx!(out, u, mode::AbstractDerivativeMode=Direct()) = dd!(out, u, physical_to_storage_dim(grid(u), Val(:x)), mode)
+ddx1!(out, u, mode::AbstractDerivativeMode=Direct()) = dd!(out, u, physical_to_storage_dim(grid(u), Val(:x1)), mode)
 
-"""Differentiate `u` along physical direction `y`; see [`ddx!`](@ref)."""
-ddy!(out, u, mode::AbstractDerivativeMode=Direct()) = dd!(out, u, physical_to_storage_dim(grid(u), Val(:y)), mode)
+"""Differentiate `u` along the second spatial coordinate `x2`; see [`ddx1!`](@ref)."""
+ddx2!(out, u, mode::AbstractDerivativeMode=Direct()) = dd!(out, u, physical_to_storage_dim(grid(u), Val(:x2)), mode)
 
-"""Differentiate `u` along physical direction `z`; see [`ddx!`](@ref)."""
-ddz!(out, u, mode::AbstractDerivativeMode=Direct()) = dd!(out, u, physical_to_storage_dim(grid(u), Val(:z)), mode)
+"""Differentiate `u` along the third spatial coordinate `x3`; see [`ddx1!`](@ref)."""
+ddx3!(out, u, mode::AbstractDerivativeMode=Direct()) = dd!(out, u, physical_to_storage_dim(grid(u), Val(:x3)), mode)
 
-"""Differentiate `u` along physical direction `t`; see [`ddx!`](@ref)."""
+"""Differentiate `u` along time `t`; see [`ddx1!`](@ref)."""
 ddt!(out, u, mode::AbstractDerivativeMode=Direct()) = dd!(out, u, physical_to_storage_dim(grid(u), Val(:t)), mode)
 
 dd!(out::VectorField{N}, u::VectorField{N}, sd::Val, mode::AbstractDerivativeMode=Direct()) where {N} =

@@ -18,7 +18,7 @@
 # `growto` and `convert` rebuild the wrapper while preserving the communicator
 # and decomposition metadata.
 #
-# Users choose decomposed directions with physical symbols (`:x`, `:y`, `:z`,
+# Users choose decomposed directions with physical symbols (`:x1`, `:x2`, `:x3`,
 # `:t`); public accessors also accept physical symbols via `Symbol` overloads.
 # Internal helpers and derivative kernels always work with `Int` storage dims.
 #
@@ -127,7 +127,7 @@ Three parallel `K`-tuples describe the decomposition, with one entry per
 decomposed direction:
 
   - `decomposed_physical_dims[k]` — the physical-coordinate symbol
-    (`:x`, `:y`, `:z`, or `:t`) of the `k`-th decomposed direction; must
+    (`:x1`, `:x2`, `:x3`, or `:t`) of the `k`-th decomposed direction; must
     be a spatial inhomogeneous direction (FFT-transformed cannot be decomposed).
   - `nprocesses[k]` — number of ranks along that direction.
   - `nhalo[k]` — halo width along that direction (the FD stencil
@@ -158,7 +158,7 @@ is what `comm(g)` returns.
 ```julia
 g  = ChannelGrid(...)                          # Undecomposed
 dg = distributed(g, MPI.COMM_WORLD;
-                 decomposed_physical_dims=(:y,),
+                 decomposed_physical_dims=(:x2,),
                  nprocesses=(MPI.Comm_size(MPI.COMM_WORLD),),
                  nhalo=(1,))
 ```
@@ -374,7 +374,7 @@ ReSolverFlowsBase.weights(g::DecomposedGrid) = g.weights
 
 Return the wavenumber scale for an FFT-transformed direction.
 
-`phys_dim` is the user-facing `Symbol` form (`:x`, `:y`, `:z`,
+`phys_dim` is the user-facing `Symbol` form (`:x1`, `:x2`, `:x3`,
 `:t`). `stor_dim::Integer` is the internal contract ReSolverFlowsBase reaches
 for inside its `dd!(out, u, ::Val{STORAGE_DIM})` primitive.
 

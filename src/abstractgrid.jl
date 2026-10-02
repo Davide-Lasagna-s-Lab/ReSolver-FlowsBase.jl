@@ -16,7 +16,7 @@
 # The four type parameters encode:
 #   T              - real scalar type (Float64 by default)
 #   D              - number of array dimensions
-#   AXES           - 4-tuple mapping physical coordinates (x,y,z,t) to storage dims
+#   AXES           - 4-tuple mapping the coordinates (x1,x2,x3,t) to storage dims
 #   FFT_DIMS_ORDER - ordered tuple of array dimensions that are FFT-transformed;
 #                    FFT_DIMS_ORDER[1] is always the rfft dimension
 #
@@ -34,12 +34,14 @@ Abstract type that represents a generic computational grid of a
 Type parameters:
 - `T`: scalar real type used by physical-space fields on this grid.
 - `D`: number of array dimensions.
-- `AXES`: four-entry Cartesian axis layout `(x_dim, y_dim, z_dim, t_dim)`.
-  ReSolverFlowsBase assumes this tuple always has four entries, one for each logical
-  Cartesian coordinate.  Each entry is the array dimension occupied by that
-  coordinate, or `nothing` when the coordinate is absent.  The non-`nothing`
-  entries should be a permutation of `1:D`.  For example, a three-dimensional
-  grid stored as `(y, x, z)` should use `AXES = (2, 1, 3, nothing)`.
+- `AXES`: four-entry axis layout `(x1_dim, x2_dim, x3_dim, t_dim)`, for three
+  spatial coordinates and time. ReSolverFlowsBase does not interpret the spatial
+  coordinates: they may be Cartesian `(x, y, z)`, cylindrical `(r, θ, z)`, and
+  so on; names belong to the equations built on the grid. Each entry is the
+  array dimension occupied by that coordinate, or `nothing` when the coordinate
+  is absent. The non-`nothing` entries should be a permutation of `1:D`. For
+  example, a three-dimensional grid stored as `(x2, x1, x3)` should use
+  `AXES = (2, 1, 3, nothing)`.
 - `FFT_DIMS_ORDER`: tuple of statistically homogeneous array dimensions. These are
   transformed by FFTs; `FFT_DIMS_ORDER[1]` is the rfft dimension.
 
@@ -306,26 +308,26 @@ end
 
 Return the storage-array dimension used for physical direction `physical_dim`.
 
-`physical_dim` may be one of `:x`, `:y`, `:z`, or `:t`, or `Val` of one of those
+`physical_dim` may be one of `:x1`, `:x2`, `:x3`, or `:t`, or `Val` of one of those
 symbols. A missing physical direction returns `nothing`, which lets derivative
 wrappers for absent coordinates become no-ops.
 
 # Examples
 
-For `AXES = (2, 1, 3, nothing)`, `storage_dim(grid, :x) == 2`,
-`storage_dim(grid, :y) == 1`, and `storage_dim(grid, :t) === nothing`.
+For `AXES = (2, 1, 3, nothing)`, `storage_dim(grid, :x1) == 2`,
+`storage_dim(grid, :x2) == 1`, and `storage_dim(grid, :t) === nothing`.
 """
 # `where {T<:Real, D}` matches the constraint on the abstract type's
 # first parameter explicitly; without it Julia (1.12+) sees the literal
-# `Val{:x}` methods as ambiguous with the catch-all `Val{DIM}` fallback
+# `Val{:x1}` methods as ambiguous with the catch-all `Val{DIM}` fallback
 # below when the input grid passes through an indirect type hierarchy.
-storage_dim(::AbstractGrid{T, D, AXES} where {T<:Real, D}, ::Val{:x}) where {AXES} = AXES[1]
-storage_dim(::AbstractGrid{T, D, AXES} where {T<:Real, D}, ::Val{:y}) where {AXES} = AXES[2]
-storage_dim(::AbstractGrid{T, D, AXES} where {T<:Real, D}, ::Val{:z}) where {AXES} = AXES[3]
-storage_dim(::AbstractGrid{T, D, AXES} where {T<:Real, D}, ::Val{:t}) where {AXES} = AXES[4]
+storage_dim(::AbstractGrid{T, D, AXES} where {T<:Real, D}, ::Val{:x1}) where {AXES} = AXES[1]
+storage_dim(::AbstractGrid{T, D, AXES} where {T<:Real, D}, ::Val{:x2}) where {AXES} = AXES[2]
+storage_dim(::AbstractGrid{T, D, AXES} where {T<:Real, D}, ::Val{:x3}) where {AXES} = AXES[3]
+storage_dim(::AbstractGrid{T, D, AXES} where {T<:Real, D}, ::Val{:t})  where {AXES} = AXES[4]
 storage_dim(grid::AbstractGrid, physical_dim::Symbol) = storage_dim(grid, Val(physical_dim))
 function storage_dim(::AbstractGrid, ::Val{DIM}) where {DIM}
-    throw(ArgumentError("physical direction must be one of :x, :y, :z, or :t; got $(repr(DIM))"))
+    throw(ArgumentError("physical direction must be one of :x1, :x2, :x3, or :t; got $(repr(DIM))"))
 end
 
 """
@@ -338,8 +340,8 @@ propagated so callers can normalize optional directions.
 
 # Examples
 
-For `AXES = (2, 1, 3, nothing)`, `physical_dim(grid, 1) == :y`,
-`physical_dim(grid, 2) == :x`, and `physical_dim(grid, nothing) === nothing`.
+For `AXES = (2, 1, 3, nothing)`, `physical_dim(grid, 1) == :x2`,
+`physical_dim(grid, 2) == :x1`, and `physical_dim(grid, nothing) === nothing`.
 """
 physical_dim(::AbstractGrid, ::Nothing) = nothing
 physical_dim(::AbstractGrid, ::Val{nothing}) = nothing
@@ -348,10 +350,10 @@ physical_dim(grid::AbstractGrid, storage_dim::Integer) = physical_dim(grid, Val(
 @generated function physical_dim(::AbstractGrid{<:Any, D, AXES}, ::Val{DIM}) where {D, AXES, DIM}
     isnothing(DIM) && return :(nothing)
     if DIM isa Symbol
-        if DIM in (:x, :y, :z, :t)
+        if DIM in (:x1, :x2, :x3, :t)
             return QuoteNode(DIM)
         end
-        msg = "physical direction must be one of :x, :y, :z, or :t; got $(repr(DIM))"
+        msg = "physical direction must be one of :x1, :x2, :x3, or :t; got $(repr(DIM))"
         return :(throw(ArgumentError($msg)))
     end
     if !(DIM isa Integer)
@@ -362,7 +364,7 @@ physical_dim(grid::AbstractGrid, storage_dim::Integer) = physical_dim(grid, Val(
         msg = "storage dimension $DIM is outside 1:$D"
         return :(throw(ArgumentError($msg)))
     end
-    directions = (:x, :y, :z, :t)
+    directions = (:x1, :x2, :x3, :t)
     i = findfirst(==(DIM), AXES)
     isnothing(i) && return :(nothing)
     return QuoteNode(directions[i])
@@ -375,32 +377,32 @@ Return the storage-array dimension for `physical_dim`, wrapped in a `Val`
 so it can feed type-stably into other `Val`-dispatched functions (e.g.
 `FDGrids.mul!`).
 
-`physical_dim` may be a coordinate symbol (`:x`, `:y`, `:z`, `:t`) or a
+`physical_dim` may be a coordinate symbol (`:x1`, `:x2`, `:x3`, `:t`) or a
 `Val` of one. The result is `Val{N}` where `N` is the storage dimension
 hosting that physical direction, or `Val{nothing}` when the grid omits
 that coordinate.
 
 This is a `@generated` function: the `AXES` lookup is folded to a
 literal `Val(N)` at compile time, so the call has no runtime cost at
-literal call sites such as `physical_to_storage_dim(g, Val(:x))`. Use it
+literal call sites such as `physical_to_storage_dim(g, Val(:x1))`. Use it
 in preference to `Val(storage_dim(g, dim))`, which constructs the `Val`
 from a runtime `Int` and breaks the type-stable chain.
 
 # Examples
 
-For `AXES = (2, 1, 3, nothing)`, `physical_to_storage_dim(g, Val(:x))`
-returns `Val(2)`, `physical_to_storage_dim(g, Val(:y))` returns
+For `AXES = (2, 1, 3, nothing)`, `physical_to_storage_dim(g, Val(:x1))`
+returns `Val(2)`, `physical_to_storage_dim(g, Val(:x2))` returns
 `Val(1)`, and `physical_to_storage_dim(g, Val(:t))` returns
 `Val(nothing)`.
 """
 @generated function physical_to_storage_dim(::AbstractGrid{<:Any, <:Any, AXES},
                                             ::Val{PHYSICAL_DIM}) where {AXES, PHYSICAL_DIM}
-    idx = if PHYSICAL_DIM === :x; 1
-      elseif PHYSICAL_DIM === :y; 2
-      elseif PHYSICAL_DIM === :z; 3
+    idx = if PHYSICAL_DIM === :x1; 1
+      elseif PHYSICAL_DIM === :x2; 2
+      elseif PHYSICAL_DIM === :x3; 3
       elseif PHYSICAL_DIM === :t; 4
     else
-        msg = "physical direction must be :x, :y, :z, or :t; got $(repr(PHYSICAL_DIM))"
+        msg = "physical direction must be :x1, :x2, :x3, or :t; got $(repr(PHYSICAL_DIM))"
         return :(throw(ArgumentError($msg)))
     end
     storage_dim_value = AXES[idx]
