@@ -54,9 +54,9 @@ Concrete grid packages must implement:
   `fft_storage_dims(grid)`.
 - `weights(grid)` returning quadrature weights for the inhomogeneous
   dimensions.
-- `_inhomogeneous_dd!(out, u, Val(dim), mode=Forward())` for first derivatives
+- `_inhomogeneous_dd!(out, u, Val(dim), [DiscreteAdjoint()])` for first derivatives
   along each non-Fourier storage dimension.
-- `inhomogeneous_laplacian!(out, u, mode=Forward())` for the sum of spatial
+- `inhomogeneous_laplacian!(out, u, [DiscreteAdjoint()])` for the sum of spatial
   second derivatives along non-Fourier dimensions.
 - `Base.convert(::Type{S}, grid)` if fields should support changing scalar
    precision via `similar(field, S)`.
@@ -67,12 +67,12 @@ Implement `growto(grid, target_size)` if the package supports changing the
 homogeneous resolution.  Implementing grid growth is also required for
 `FFT(field, target_size)` and `IFFT(ftfield, target_size)`.
 
-Implement `derivative_matrix(grid, storage_dim, Val(order), mode)` when a
+Implement `derivative_matrix(grid, storage_dim, Val(order), Direct())` and
+`derivative_matrix(grid, storage_dim, Val(order), DiscreteAdjoint())` when a
 decomposed-grid wrapper needs to retrieve local first- and second-derivative
-stencils from its serial parent. The `mode` argument is an `OperatorMode` tag
-(`Forward()` or `AdjointDiscrete()`) that participates in dispatch: forward
-and adjoint operators may have different concrete types, and the tag keeps the
-accessor type stable without any runtime branch.
+stencils from its serial parent. The two methods may return different concrete
+types; dispatch on the tag keeps the accessor type stable without any runtime
+branch.
 
 # Provided defaults (override only if needed)
 

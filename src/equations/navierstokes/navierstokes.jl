@@ -7,7 +7,7 @@
 # The call method below is written once. A formulation (formulations.jl)
 # provides `viscous!`; each formulation–nonlinearity form pair provides
 # `advection!`, `fill_linearised_state!` and the workspace sizes
-# (navierstokes/<formulation>/<form>.jl). Kernels take the fields explicitly, so other
+# (navierstokes/advection/<formulation>/<form>.jl). Kernels take the fields explicitly, so other
 # systems (e.g. Boussinesq, MHD) can reuse them on the velocity components.
 #
 # NOTE — possible future generalisation: a "quadratic system" framework.
@@ -27,12 +27,8 @@
 # ============================================================================ #
 
 # derivative mode used by the Laplacian
-_laplacian_mode(::Union{Nonlinear, Linearised, AdjointContinuous}) = Forward()
-_laplacian_mode(::AdjointDiscrete)                                 = AdjointDiscrete()
-
-# mode passed to the body force
-_force_mode(::Union{Nonlinear, Linearised}) = Forward()
-_force_mode(mode::Union{AdjointDiscrete, AdjointContinuous}) = mode
+_laplacian_mode(::Union{Nonlinear, Linearised, AdjointContinuous}) = Direct()
+_laplacian_mode(::AdjointDiscrete)                                 = DiscreteAdjoint()
 
 
 # ============================================================================ #
@@ -82,7 +78,7 @@ function (op::NavierStokes)(::Real, u::VectorField, out::VectorField)
     advection!(out, u, op.mode, op.formulation, op.nlform, op.work)
 
     # ---- body force ----
-    op.force(out, u, _force_mode(op.mode))
+    op.force(out, u, op.mode)
 
     return out
 end

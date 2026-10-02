@@ -37,7 +37,7 @@ function _curl!(  ω::VectorField{3},
                   u::VectorField{3},
                 tmp::FTField,
                 cyl::Cylindrical,
-                   ::Forward)
+                   ::Direct)
 
     # ---- ω_r = (1/r)∂θ u_z - ∂z u_θ ----
     ddy!(ω[1], u[3])
@@ -66,8 +66,8 @@ function _curl!(  o::VectorField{3},
                   c::VectorField{3},
                 tmp::FTField,
                 cyl::Cylindrical,
-                   ::AdjointDiscrete)
-    m = AdjointDiscrete()
+                   ::DiscreteAdjoint)
+    m = DiscreteAdjoint()
 
     # ---- (curl⁺c)_r = ∂z⁺c_θ - (1/r)∂θ⁺c_z ----
     ddz!(o[1], c[2], m)
@@ -101,7 +101,7 @@ function fill_linearised_state!(state::Vector{<:VectorField{3}},
     ω, tmp = work.scache
 
     # ---- vorticity in spectral space ----
-    _curl!(ω, u, tmp[1], cyl, Forward())
+    _curl!(ω, u, tmp[1], cyl, Direct())
 
     # ---- to physical space ----
     work.plans(U, u)
@@ -124,7 +124,7 @@ function advection!( out::VectorField{3},
     U, W, R = work.pcache
 
     # ---- u and ω in physical space ----
-    _curl!(ω, u, tmp[1], cyl, Forward())
+    _curl!(ω, u, tmp[1], cyl, Direct())
 
     work.plans(U, u)
     work.plans(W, ω)
@@ -155,7 +155,7 @@ function advection!( out::VectorField{3},
     V, Z, R = work.pcache
 
     # ---- v and ζ in physical space ----
-    _curl!(ζ, v, tmp[1], cyl, Forward())
+    _curl!(ζ, v, tmp[1], cyl, Direct())
 
     work.plans(V, v)
     work.plans(Z, ζ)

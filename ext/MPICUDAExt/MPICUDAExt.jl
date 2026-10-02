@@ -69,7 +69,7 @@ end
 ReSolverFlowsBase._spectral_dd!(out::F,
                                 u::F,
                                  ::Val{STORAGE_DIM},
-                             mode::ReSolverFlowsBase.OperatorMode=ReSolverFlowsBase.Forward()) where {
+                             mode::ReSolverFlowsBase.AbstractDerivativeMode=ReSolverFlowsBase.Direct()) where {
                             STORAGE_DIM,
                             G<:DecomposedGPUGrid,
                             F<:Union{ReSolverFlowsBase.FTField{G}, ReSolverFlowsBase.ProjectedField{G}}} =

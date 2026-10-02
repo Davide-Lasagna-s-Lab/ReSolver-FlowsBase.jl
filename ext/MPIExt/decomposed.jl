@@ -506,18 +506,17 @@ global_size(g::DecomposedGrid, stor_dim::Int) = global_size(g)[stor_dim]
                       ::Val{ORDER}, [mode])
 
 Return the FD differentiation matrix of order `ORDER` along storage
-dimension `stor_dim`, in its forward (`Forward()`, the default) or discrete
-adjoint (`AdjointDiscrete()`) form.
+dimension `stor_dim`, plain or, with `DiscreteAdjoint()`, its discrete adjoint.
 
 Downstream single-domain grid types implement this on `parent(g)`:
 ```
-ReSolverFlowsBase.derivative_matrix(::ParentType, stor_dim::Int, ::Val{ORDER}, mode)
+ReSolverFlowsBase.derivative_matrix(::ParentType, stor_dim::Int, ::Val{ORDER}, mode::AbstractDerivativeMode)
 ```
 """
 ReSolverFlowsBase.derivative_matrix(g::DecomposedGrid,
                    stor_dim::Int,
                            ::Val{ORDER},
-                       mode::OperatorMode=Forward()) where {ORDER} =
+                       mode::AbstractDerivativeMode) where {ORDER} =
     ReSolverFlowsBase.derivative_matrix(g.parent, stor_dim, Val(ORDER), mode)
 
 # Neighbour predicates. Periodic directions always have neighbours;

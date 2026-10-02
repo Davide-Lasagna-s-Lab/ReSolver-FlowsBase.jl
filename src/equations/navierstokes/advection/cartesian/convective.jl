@@ -142,9 +142,9 @@ function advection!( out::VectorField{3},
 
     # ---- -∇⁺·(U ⊗ w), with adjoint derivatives ----
     for n in 1:3
-        ddx!(tmp[1], u1w[n], AdjointDiscrete())
-        ddy!(tmp[2], u2w[n], AdjointDiscrete())
-        ddz!(tmp[3], u3w[n], AdjointDiscrete())
+        ddx!(tmp[1], u1w[n], DiscreteAdjoint())
+        ddy!(tmp[2], u2w[n], DiscreteAdjoint())
+        ddz!(tmp[3], u3w[n], DiscreteAdjoint())
         out[n] .-= tmp[1] .+ tmp[2] .+ tmp[3]
     end
 
@@ -323,8 +323,8 @@ function advection!( out::VectorField{2},
 
     # ---- -∇⁺·(U ⊗ w), with adjoint derivatives ----
     for n in 1:2
-        ddx!(tmp[1], u1w[n], AdjointDiscrete())
-        ddy!(tmp[2], u2w[n], AdjointDiscrete())
+        ddx!(tmp[1], u1w[n], DiscreteAdjoint())
+        ddy!(tmp[2], u2w[n], DiscreteAdjoint())
         out[n] .-= tmp[1] .+ tmp[2]
     end
 

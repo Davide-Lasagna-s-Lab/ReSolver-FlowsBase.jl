@@ -152,7 +152,7 @@ end
 function ReSolverFlowsBase.derivative_matrix(g::MockChannelGrid,
                                     ::Integer,
                                     ::Val{ORDER},
-                                    ::Forward) where {ORDER}
+                                    ::Direct) where {ORDER}
     A = ORDER == 1 ? g.D₁ :
         ORDER == 2 ? g.D₂ :
         throw(ArgumentError("MockChannelGrid: unsupported derivative order $ORDER"))
@@ -162,7 +162,7 @@ end
 function ReSolverFlowsBase.derivative_matrix(g::MockChannelGrid,
                                     ::Integer,
                                     ::Val{ORDER},
-                                    ::AdjointDiscrete) where {ORDER}
+                                    ::DiscreteAdjoint) where {ORDER}
     A = ORDER == 1 ? g.D₁ :
         ORDER == 2 ? g.D₂ :
         throw(ArgumentError("MockChannelGrid: unsupported derivative order $ORDER"))

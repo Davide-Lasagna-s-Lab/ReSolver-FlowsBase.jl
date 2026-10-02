@@ -138,11 +138,14 @@ end
 function ReSolverFlowsBase.derivative_matrix(g::PolynomialGrid,
                                     ::Int,
                                     ::Val{ORDER},
-                                    ::OperatorMode) where {ORDER}
+                                    ::Direct) where {ORDER}
     ORDER == 1 && return g.D1
     ORDER == 2 && return g.D2
     throw(ArgumentError("only orders 1 and 2 are available, got order=$ORDER"))
 end
+
+ReSolverFlowsBase.derivative_matrix(g::PolynomialGrid, dim::Int, order::Val, ::DiscreteAdjoint) =
+    ReSolverFlowsBase.derivative_matrix(g, dim, order, Direct())
 
 
 # Minimal grids used by several generic tests.  They intentionally implement

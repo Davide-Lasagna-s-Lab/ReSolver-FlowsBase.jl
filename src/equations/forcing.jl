@@ -1,5 +1,6 @@
 # Body forces, called as `force(out, u, mode)` and adding their contribution
-# to `out`.
+# to `out`. `mode` is the equation mode of the calling operator: Nonlinear,
+# Linearised, AdjointDiscrete or AdjointContinuous.
 #
 # `NoForce` is the default body-force callable: it receives `(out, u, mode)` and
 # returns `out` unchanged, imposing no additional forcing.

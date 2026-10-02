@@ -21,8 +21,8 @@ _workspace_sizes(::Cartesian{3}, ::Rotational) = (2, 3, 3)
 _workspace_sizes(::Cartesian{2}, ::Rotational) = (2, 3, 3)
 
 # derivative mode of the curl in the adjoints
-_curl_mode(::AdjointDiscrete)   = AdjointDiscrete()
-_curl_mode(::AdjointContinuous) = Forward()
+_curl_mode(::AdjointDiscrete)   = DiscreteAdjoint()
+_curl_mode(::AdjointContinuous) = Direct()
 
 
 # ============================================================================ #
@@ -30,7 +30,7 @@ _curl_mode(::AdjointContinuous) = Forward()
 # ============================================================================ #
 
 # ---------------------------------------------------------------------------- #
-# curl: ω = ∇ × u, or with AdjointDiscrete its exact transpose                 #
+# curl: ω = ∇ × u, or with DiscreteAdjoint its exact transpose                 #
 # ---------------------------------------------------------------------------- #
 #     (curl⁺w)₁ = ∂z⁺w₂ - ∂y⁺w₃
 #     (curl⁺w)₂ = ∂x⁺w₃ - ∂z⁺w₁
@@ -39,13 +39,13 @@ function _curl!(   ω::VectorField{3},
                    u::VectorField{3},
                  tmp::FTField,
                     ::Cartesian{3},
-                mode::OperatorMode)
+                mode::AbstractDerivativeMode)
     ddy!(ω[1], u[3], mode); ddz!(tmp, u[2], mode); ω[1] .-= tmp
     ddz!(ω[2], u[1], mode); ddx!(tmp, u[3], mode); ω[2] .-= tmp
     ddx!(ω[3], u[2], mode); ddy!(tmp, u[1], mode); ω[3] .-= tmp
 
     # the transpose of a difference of derivatives swaps its sign
-    mode isa AdjointDiscrete && (ω .*= -1)
+    mode isa DiscreteAdjoint && (ω .*= -1)
 
     return ω
 end
@@ -63,7 +63,7 @@ function fill_linearised_state!(      state::Vector{<:VectorField{3}},
     ω, tmp = work.scache
 
     # ---- vorticity in spectral space ----
-    _curl!(ω, u, tmp[1], formulation, Forward())
+    _curl!(ω, u, tmp[1], formulation, Direct())
 
     # ---- to physical space ----
     work.plans(U, u)
@@ -86,7 +86,7 @@ function advection!(        out::VectorField{3},
     U, W, R = work.pcache
 
     # ---- u and ω in physical space ----
-    _curl!(ω, u, tmp[1], formulation, Forward())
+    _curl!(ω, u, tmp[1], formulation, Direct())
 
     work.plans(U, u)
     work.plans(W, ω)
@@ -117,7 +117,7 @@ function advection!(        out::VectorField{3},
     V, Z, R = work.pcache
 
     # ---- v and ζ in physical space ----
-    _curl!(ζ, v, tmp[1], formulation, Forward())
+    _curl!(ζ, v, tmp[1], formulation, Direct())
 
     work.plans(V, v)
     work.plans(Z, ζ)

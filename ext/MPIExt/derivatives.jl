@@ -1,7 +1,7 @@
 # Halo exchange and finite-difference derivatives for decomposed grids.
 #
 # Concrete decomposed grids must implement
-#   derivative_matrix(g, stor_dim::Int, ::Val{ORDER}, mode::OperatorMode)
+#   derivative_matrix(g, stor_dim::Int, ::Val{ORDER}, mode::AbstractDerivativeMode)
 # for every inhomogeneous spatial direction and every derivative order they support.
 
 
@@ -22,7 +22,7 @@ wait_requests!(tokens::Tuple) = (foreach(wait_requests!, tokens); nothing)
 """
     ReSolverFlowsBase.laplacian!(out::DecomposedFTField,
                          u::DecomposedFTField,
-                      mode=Forward()) -> DecomposedFTField
+                      [DiscreteAdjoint()]) -> DecomposedFTField
 
 Compute the full Laplacian of the distributed FTField `u` in-place,
 storing the result in `out`.
@@ -34,7 +34,7 @@ swaps have completed.
 """
 function ReSolverFlowsBase.laplacian!(out::DecomposedFTField,
                               u::DecomposedFTField,
-                           mode::OperatorMode=Forward())
+                           mode::AbstractDerivativeMode=Direct())
     # start comm
     requests = init_requests!(u)
 
@@ -51,7 +51,7 @@ end
 """
     interior_laplacian!(out::DecomposedFTField,
                           u::DecomposedFTField,
-                       mode=Forward()) -> DecomposedFTField
+                       [DiscreteAdjoint()]) -> DecomposedFTField
 
 Compute the Laplacian operator on the parts of the distributed field
 `u` that do not depend on data from the halo regions of the underlying
@@ -59,7 +59,7 @@ arrays.
 """
 function interior_laplacian!(out::DecomposedFTField,
                                u::DecomposedFTField,
-                            mode::OperatorMode=Forward())
+                            mode::AbstractDerivativeMode=Direct())
     # santise input
     out .= zero(eltype(u))
 
@@ -95,7 +95,7 @@ end
 """
     boundary_laplacian!(out::DecomposedFTField,
                           u::DecomposedFTField,
-                       mode=Forward()) -> DecomposedFTField
+                       [DiscreteAdjoint()]) -> DecomposedFTField
 
 Compute the remaining parts of the Laplacian of the distributed field
 `u` that depend on the data in the halo regions of the underlying arrays.
@@ -104,7 +104,7 @@ completed.
 """
 function boundary_laplacian!(out::DecomposedFTField,
                                u::DecomposedFTField,
-                            mode::OperatorMode=Forward())
+                            mode::AbstractDerivativeMode=Direct())
     g = ReSolverFlowsBase.grid(u)
     for sd in ReSolverFlowsBase.spatial_inhomogeneous_storage_dims(g)
         _dd_over!(out, u, g, Val(sd), Val(2),
@@ -122,7 +122,7 @@ end
     dd!(out::DecomposedFTField,
           u::DecomposedFTField,
            ::Val{STORAGE_DIM},
-       mode=Forward()) -> DecomposedFTField
+       [DiscreteAdjoint()]) -> DecomposedFTField
 
 In-place derivative of the distributed field `u` along the storage
 dimension encoded by `Val(STORAGE_DIM)`.
@@ -134,7 +134,7 @@ routines for the derivative computation.
 function ReSolverFlowsBase.dd!(out::F,
                        u::F,
                         ::Val{STORAGE_DIM},
-                    mode::OperatorMode=Forward()) where {
+                    mode::AbstractDerivativeMode=Direct()) where {
     STORAGE_DIM, FFT_DIMS_ORDER, DDIMS, T, D, AXES,
     G<:DecomposedGrid{T, D, AXES, FFT_DIMS_ORDER, DDIMS},
     F<:Union{ReSolverFlowsBase.FTField{G}, ReSolverFlowsBase.ProjectedField{G}}} # ! how do I get rid of the ProjectedField part?
@@ -158,7 +158,7 @@ end
     _distributed_dd!(out::DecomposedFTField,
                        u::DecomposedFTField,
                         ::Val{STORAGE_DIM},
-                    mode=Forward()) -> DecomposedFTField
+                    [DiscreteAdjoint()]) -> DecomposedFTField
 
 Compute the derivative of a distributed field `u` along one of
 decomposed storage dimensions, i.e. `STORAGE_DIM ∈ DDIMS`.
@@ -166,7 +166,7 @@ decomposed storage dimensions, i.e. `STORAGE_DIM ∈ DDIMS`.
 function _distributed_dd!(out::Union{DecomposedFTField, DecomposedField},
                             u::Union{DecomposedFTField, DecomposedField},
                              ::Val{STORAGE_DIM},
-                         mode::OperatorMode=Forward()) where {STORAGE_DIM}
+                         mode::AbstractDerivativeMode=Direct()) where {STORAGE_DIM}
     # start comm
     requests = init_requests!(u)
 
@@ -184,7 +184,7 @@ end
     interior_dd!(out::DecomposedFTField,
                    u::DecomposedFTField,
                     ::Val{STORAGE_DIM},
-                mode=Forward()) -> DecomposedFTField
+                [DiscreteAdjoint()]) -> DecomposedFTField
 
 Compute the derivative of the parts of the distributed field `u` along
 the storage dimension `STORAGE_DIM` that do not depend on data from
@@ -193,7 +193,7 @@ the halo regions of the underlying arrays.
 interior_dd!(out::DecomposedFTField,
                u::DecomposedFTField,
                 ::Val{STORAGE_DIM},
-            mode::OperatorMode=Forward()) where {STORAGE_DIM} =
+            mode::AbstractDerivativeMode=Direct()) where {STORAGE_DIM} =
     _dd_over!(out, u, ReSolverFlowsBase.grid(u), Val(STORAGE_DIM), Val(1),
               (local_interior_range(ReSolverFlowsBase.grid(u), STORAGE_DIM),), mode)
 
@@ -201,7 +201,7 @@ interior_dd!(out::DecomposedFTField,
     boundary_dd!(out::DecomposedFTField,
                    u::DecomposedFTField,
                     ::Val{STORAGE_DIM},
-                mode=Forward()) -> DecomposedFTField
+                [DiscreteAdjoint()]) -> DecomposedFTField
 
 Compute the remaining parts of the derivative of the distributed field
 `u` that depend on the data in the halo regions of the underlying arrays.
@@ -211,7 +211,7 @@ completed.
 boundary_dd!(out::DecomposedFTField,
                u::DecomposedFTField,
                 ::Val{STORAGE_DIM},
-            mode::OperatorMode=Forward()) where {STORAGE_DIM} =
+            mode::AbstractDerivativeMode=Direct()) where {STORAGE_DIM} =
     _dd_over!(out, u, ReSolverFlowsBase.grid(u), Val(STORAGE_DIM), Val(1),
               local_boundary_ranges(ReSolverFlowsBase.grid(u), STORAGE_DIM), mode)
 
@@ -221,7 +221,7 @@ boundary_dd!(out::DecomposedFTField,
 # ------------------------------------------------------------------ #
 """
     _dd_over!(out, u, g::DecomposedGrid, ::Val{STORAGE_DIM}, ::Val{ORDER},
-              ranges, mode=Forward(); accumulate::Val=Val(false))
+              ranges, [DiscreteAdjoint()]; accumulate::Val=Val(false))
 
 Compute the derivative of a distributed field `u` in-place along the
 storage dimension `STORAGE_DIM ∈ DDIMS` and assign the
@@ -240,7 +240,7 @@ operator has one concrete type in the matrix kernel.
 """
 @inline function _dd_over!(out, u, g::DecomposedGrid, ::Val{STORAGE_DIM}, ::Val{ORDER},
                            ranges,
-                           mode::OperatorMode=Forward();
+                           mode::AbstractDerivativeMode=Direct();
                            accumulate::Val{B}=Val(false)) where {STORAGE_DIM, ORDER, B}
     A = ReSolverFlowsBase.derivative_matrix(g, STORAGE_DIM, Val(ORDER), mode)
     g_first = global_first_index(g, STORAGE_DIM)

@@ -22,12 +22,12 @@ export add_base_flow!
 export FFTPlans, FFT, IFFT
 export ProjectedField, modes, project!, project, expand!, expand
 export LoopGalerkin, GemmGalerkin
-export dd!, ddx!, ddy!, ddz!, ddt!
+export dd!, ddx!, ddy!, ddz!, ddt!, AbstractDerivativeMode, Direct, DiscreteAdjoint
 export laplacian!
 export shift!, shift, normdiff, minnormdiff, dot, norm
 export save_grid, load_grid, save_field, load_field
 export FarazmandWeight
-export Forward, Nonlinear, Linearised, AdjointContinuous, AdjointDiscrete, AnyLinear, AbstractEquationMode, OperatorMode
+export Nonlinear, Linearised, AdjointContinuous, AdjointDiscrete, AnyLinear, AbstractEquationMode
 export NoForce, CompoundForcing
 export NavierStokes, Cartesian, Cylindrical,
        AbstractNonlinearityForm, Convective, Rotational, ncomp, linearise_about!
@@ -47,7 +47,7 @@ include("shifts.jl")
 include("norms.jl")
 include("weighting.jl")
 include("broadcasting.jl")
-include("equations/types.jl")
+include("equations/equationmodes.jl")
 include("derivatives.jl")
 include("io.jl")
 include("equations/forcing.jl")
@@ -55,10 +55,11 @@ include("equations/workspace.jl")
 include("equations/formulations.jl")
 include("equations/navierstokes/nonlinearityforms.jl")
 include("equations/navierstokes/navierstokes.jl")
-include("equations/navierstokes/cartesian/convective.jl")
-include("equations/navierstokes/cartesian/rotational.jl")
-include("equations/navierstokes/cylindrical/convective.jl")
-include("equations/navierstokes/cylindrical/rotational.jl")
+include("equations/navierstokes/viscous.jl")
+include("equations/navierstokes/advection/cartesian/convective.jl")
+include("equations/navierstokes/advection/cartesian/rotational.jl")
+include("equations/navierstokes/advection/cylindrical/convective.jl")
+include("equations/navierstokes/advection/cylindrical/rotational.jl")
 include("equations/projectedequation.jl")
 include("equations/construct.jl")
 
