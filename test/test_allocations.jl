@@ -76,7 +76,6 @@ end
     @testset "src/ReSolverFlowsBase.jl" begin
         @test isdefined(ReSolverFlowsBase, :AbstractGrid)
         @test isdefined(ReSolverFlowsBase, :FTField)
-        @test isdefined(ReSolverFlowsBase, :ProjectedNSE)
     end
 
     @testset "src/notimplementederror.jl" begin
@@ -93,7 +92,7 @@ end
 
     @testset "src/abstractgrid.jl" begin
         (; g) = alloc_fixture()
-        values = (:x, :y, :z, :t)
+        values = (:x1, :x2, :x3, :t)
 
         @test allocs_after_warmup(() -> ReSolverFlowsBase.fft_storage_dims(g)) == 0
         @test allocs_after_warmup(() -> ReSolverFlowsBase.inhomogeneous_storage_dims(g)) == 0
@@ -321,13 +320,13 @@ end
         out = zero(u)
         qout = zero(q)
 
-        @test allocs_after_warmup(() -> ddx!(out, u)) == 0
-        # ddy!/dd! on dim 1 dispatches to PolynomialGrid's LinearAlgebra.mul! extension.
+        @test allocs_after_warmup(() -> ddx1!(out, u)) == 0
+        # ddx2!/dd! on dim 1 dispatches to PolynomialGrid's LinearAlgebra.mul! extension.
         # On Julia < 1.11 mul! allocates when --check-bounds=yes is active; skip there.
         if VERSION >= v"1.11"
-            @test allocs_after_warmup(() -> ddy!(out, u)) == 0
+            @test allocs_after_warmup(() -> ddx2!(out, u)) == 0
         end
-        @test allocs_after_warmup(() -> ddz!(out, u)) == 0
+        @test allocs_after_warmup(() -> ddx3!(out, u)) == 0
         @test allocs_after_warmup(() -> ddt!(out, u)) == 0
         @test allocs_after_warmup(() -> ReSolverFlowsBase.dd!(out, u, Val(2))) == 0
         @test allocs_after_warmup(() -> ReSolverFlowsBase.dd!(qout, q, Val(2))) == 0
@@ -355,66 +354,4 @@ end
         end
     end
 
-    @testset "src/equations/types.jl" begin
-        out = Ref(0)
-        cf = CompoundForcing(NoForce(), alloc_noop_force!)
-
-        @test allocs_after_warmup(() -> Forward()) == 0
-        @test allocs_after_warmup(() -> AdjointDiscrete()) == 0
-        @test allocs_after_warmup(() -> AdjointContinuous()) == 0
-        @test allocs_after_warmup(() -> NoForce()(out, nothing, Forward())) == 0
-        @test allocs_after_warmup(() -> CompoundForcing(NoForce(), alloc_noop_force!)) == 0
-        @test allocs_after_warmup(() -> cf(out, nothing, Forward())) == 0
-    end
-
-    @testset "src/equations/shared.jl" begin
-        (; g) = alloc_polynomial_fixture()
-        base = (zeros(size(g, 1)), nothing)
-
-        @test allocs_after_warmup(() -> ReSolverFlowsBase.ncomp(CartesianPrimitive3D())) == 0
-        @test allocs_after_warmup(() -> ReSolverFlowsBase.cache_length(CartesianPrimitive3D(), FTField)) == 0
-        @test allocs_after_warmup(() -> ReSolverFlowsBase.cache_length(CartesianPrimitive3D(), Field)) == 0
-        @test allocs_after_warmup(() -> ReSolverFlowsBase.nonlinear_operator(CartesianPrimitive2D())) == 0
-        @test allocs_after_warmup(() -> ReSolverFlowsBase.linearised_operator(CartesianPrimitive2D(), AdjointDiscrete())) == 0
-        @test allocs_after_warmup(() -> construct_equations(g, 100.0, base, CartesianPrimitive2D(); flags=FFTW.ESTIMATE, dealias=false)) > 0
-    end
-
-    @testset "src/equations/cartesianprimitive_2d.jl" begin
-        (; g, q) = alloc_polynomial_fixture()
-        out = zero(q)
-        eq = CartesianPrimitive2DNSE(g, 100.0; flags=FFTW.ESTIMATE)
-        ln = CartesianPrimitive2DLNSE(g, 100.0; mode=AdjointDiscrete(), flags=FFTW.ESTIMATE)
-
-        @test allocs_after_warmup(() -> CartesianPrimitive2DNSE(g, 100.0; flags=FFTW.ESTIMATE)) > 0
-        @test allocs_after_warmup(() -> CartesianPrimitive2DLNSE(g, 100.0; mode=AdjointDiscrete(), flags=FFTW.ESTIMATE)) > 0
-        # Equation actions call PolynomialGrid's mul!-based derivatives internally;
-        # on Julia < 1.11 mul! allocates with --check-bounds=yes.
-        if VERSION >= v"1.11"
-            @test allocs_after_warmup(() -> eq(0.0, q, out)) == 0
-            @test allocs_after_warmup(() -> ln(0.0, q, out)) == 0
-            @test allocs_after_warmup(() -> ln(0.0, q, q, out)) == 0
-        end
-    end
-
-    @testset "src/equations/cartesianprimitive_3d.jl                            " begin
-        (; g) = alloc_fixture()
-
-        # Construction allocates caches and FFTW plans. The full 3-D operator
-        # requires a downstream inhomogeneous derivative implementation for
-        # `TripleGrid`, so operator action is covered by the 2-D section above.
-        @test allocs_after_warmup(() -> CartesianPrimitive3DNSE(g, 100.0; flags=FFTW.ESTIMATE)) > 0
-        @test allocs_after_warmup(() -> CartesianPrimitive3DLNSE(g, 100.0; mode=AdjointDiscrete(), flags=FFTW.ESTIMATE)) > 0
-    end
-
-    @testset "src/equations/projectednse.jl" begin
-        (; g, modes, a, b) = alloc_projected_2d_fixture()
-        base = (zeros(size(g, 1)), nothing)
-        eq = construct_equations(g, 100.0, base, CartesianPrimitive2D(); flags=FFTW.ESTIMATE, dealias=true)
-
-        @test allocs_after_warmup(() -> ProjectedNSE(g, 2, eq.nl, eq.ln, base)) > 0
-        if VERSION >= v"1.11"
-            @test allocs_after_warmup(() -> eq(a, b)) == 0
-            @test allocs_after_warmup(() -> eq(a, b, b)) == 0
-        end
-    end
 end

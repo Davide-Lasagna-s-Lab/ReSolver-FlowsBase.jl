@@ -31,7 +31,7 @@ const NHALO = 1
 base_comm = MPI.Comm_dup(MPI.COMM_WORLD)
 g_parent = MockChannelGrid(Ny, Nx, Nz, Nt)
 g        = distributed(g_parent, base_comm;
-                        decomposed_physical_dims=(:y,), nprocesses=(nranks,), nhalo=(NHALO,))
+                        decomposed_physical_dims=(:x2,), nprocesses=(nranks,), nhalo=(NHALO,))
 
 Ny_local = Ny ÷ nranks
 y_offset = rank * Ny_local
@@ -40,33 +40,33 @@ y_offset = rank * Ny_local
     # Missing required kwargs.
     @test_throws UndefKeywordError distributed(g_parent, base_comm)
     @test_throws UndefKeywordError distributed(
-        g_parent, base_comm; decomposed_physical_dims=(:y,)
+        g_parent, base_comm; decomposed_physical_dims=(:x2,)
     )
 
     # `prod(nprocesses)` must equal `Comm_size(comm)`.
     @test_throws ArgumentError distributed(
         g_parent, base_comm;
-        decomposed_physical_dims=(:y,),
+        decomposed_physical_dims=(:x2,),
         nprocesses=(nranks * 2,), nhalo=(NHALO,))
 
-    # Decomposed direction must be spatial inhomogeneous; `:x` is
+    # Decomposed direction must be spatial inhomogeneous; `:x1` is
     # FFT-transformed in the channel layout.
     @test_throws ArgumentError distributed(
         g_parent, base_comm;
-        decomposed_physical_dims=(:x,),
+        decomposed_physical_dims=(:x1,),
         nprocesses=(nranks,), nhalo=(NHALO,))
 
     # Duplicate decomposed_physical_dims entries are rejected.
     @test_throws ArgumentError distributed(
         g_parent, base_comm;
-        decomposed_physical_dims=(:y, :y),
+        decomposed_physical_dims=(:x2, :x2),
         nprocesses=(1, nranks), nhalo=(NHALO, NHALO))
 
     # Decomposed dimensions always allocate HaloArray-backed fields, so their
     # halo widths must be positive.
     @test_throws ArgumentError distributed(
         g_parent, base_comm;
-        decomposed_physical_dims=(:y,),
+        decomposed_physical_dims=(:x2,),
         nprocesses=(nranks,), nhalo=(0,))
 
     # `distributed` builds the full Cartesian communicator itself, so the
@@ -76,7 +76,7 @@ y_offset = rank * Ny_local
     try
         @test_throws ArgumentError distributed(
             g_parent, topologized_comm;
-            decomposed_physical_dims=(:y,),
+            decomposed_physical_dims=(:x2,),
             nprocesses=(nranks,), nhalo=(NHALO,))
     finally
         MPI.free(topologized_comm)
@@ -88,7 +88,7 @@ if nranks > 1
         # Ny + 1 across nranks (>1) does not divide evenly.
         bad_parent = MockChannelGrid(Ny + 1, Nx, Nz, Nt)
         @test_throws ArgumentError distributed(bad_parent, base_comm;
-                                                decomposed_physical_dims=(:y,), nprocesses=(nranks,), nhalo=(1,))
+                                                decomposed_physical_dims=(:x2,), nprocesses=(nranks,), nhalo=(1,))
     end
 end
 
@@ -115,16 +115,16 @@ end
 end
 
 @testset "wavenumber_scale delegates to parent (symbol arg)                   " begin
-    @test ReSolverFlowsBase.wavenumber_scale(g, :x) == g_parent.α
-    @test ReSolverFlowsBase.wavenumber_scale(g, :z) == g_parent.β
+    @test ReSolverFlowsBase.wavenumber_scale(g, :x1) == g_parent.α
+    @test ReSolverFlowsBase.wavenumber_scale(g, :x3) == g_parent.β
 end
 
 @testset "nhalo / global_size are baked into the type                         " begin
     @test MPIExt.nhalo(g) == (NHALO, 0, 0, 0)
-    @test MPIExt.nhalo(g, :y) == NHALO
+    @test MPIExt.nhalo(g, :x2) == NHALO
     @test MPIExt.global_size(g) == (Ny, Nx, Nz, Nt)
-    @test MPIExt.global_size(g, :y) == Ny
-    @test MPIExt.local_size(g, :y) == Ny_local
+    @test MPIExt.global_size(g, :x2) == Ny
+    @test MPIExt.local_size(g, :x2) == Ny_local
 end
 
 @testset "growto enlarges only FFT dimensions and re-wraps                    " begin
@@ -133,13 +133,13 @@ end
     @test g2 isa MPIExt.DecomposedGrid
     @test MPIExt.global_size(g2) == (Ny, target[1], target[2], target[3])
     @test MPIExt.nhalo(g2) == MPIExt.nhalo(g)
-    @test MPIExt.decomposition_physical_dims(g2) == (:y,)
+    @test MPIExt.decomposition_physical_dims(g2) == (:x2,)
 end
 
 @testset "convert preserves wrapper metadata                                  " begin
     g32 = convert(Float32, g)
     @test eltype(parent(g32).y) === Float32
-    @test MPIExt.decomposition_physical_dims(g32) == (:y,)
+    @test MPIExt.decomposition_physical_dims(g32) == (:x2,)
     @test MPIExt.nhalo(g32) == MPIExt.nhalo(g)
     # Already-Float64 conversion is the identity.
     @test convert(Float64, g) === g

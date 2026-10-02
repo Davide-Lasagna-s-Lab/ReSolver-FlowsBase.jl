@@ -28,7 +28,7 @@ const NHALO = 1
 base_comm = MPI.Comm_dup(MPI.COMM_WORLD)
 g_parent = MockChannelGrid(Ny, Nx, Nz, Nt)
 g_halo   = distributed(g_parent, base_comm;
-                        decomposed_physical_dims=(:y,), nprocesses=(nranks,), nhalo=(NHALO,))
+                        decomposed_physical_dims=(:x2,), nprocesses=(nranks,), nhalo=(NHALO,))
 
 @testset "FTField on decomposed grid is HaloArray-backed                      " begin
     uhat = ReSolverFlowsBase.FTField(g_halo)

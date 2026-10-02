@@ -28,7 +28,7 @@ const NHALO = 1
 
 base_comm = MPI.Comm_dup(MPI.COMM_WORLD)
 g = distributed(MockChannelGrid(Ny, Nx, Nz, Nt), base_comm;
-                decomposed_physical_dims=(:y,), nprocesses=(nranks,), nhalo=(NHALO,))
+                decomposed_physical_dims=(:x2,), nprocesses=(nranks,), nhalo=(NHALO,))
 
 # Build a non-trivial physical-space field whose interior values are seeded
 # deterministically per rank, then transform forward and back.

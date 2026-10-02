@@ -23,7 +23,7 @@ const M = 5
 const NHALO = 2
 
 # construct grid
-gp = distributed(MockChannelGrid(Ny, Nx, Nz, Nt), comm; decomposed_physical_dims=(:y,),
+gp = distributed(MockChannelGrid(Ny, Nx, Nz, Nt), comm; decomposed_physical_dims=(:x2,),
                                                         nprocesses              =(nranks,),
                                                         nhalo                   =(NHALO,))
 
