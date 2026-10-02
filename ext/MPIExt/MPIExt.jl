@@ -5,7 +5,7 @@ import HaloArrays
 import LinearAlgebra
 import MPI
 import ReSolverFlowsBase
-using ReSolverFlowsBase: Forward, AdjointDiscrete, OperatorMode
+using ReSolverFlowsBase: Direct, DiscreteAdjoint, AbstractDerivativeMode
 
 include("decomposed.jl")
 include("types.jl")

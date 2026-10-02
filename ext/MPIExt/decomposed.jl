@@ -18,8 +18,8 @@
 # `growto` and `convert` rebuild the wrapper while preserving the communicator
 # and decomposition metadata.
 #
-# Users choose decomposed directions with physical symbols (`:x`, `:y`, `:z`,
-# `:t`); public accessors also accept physical symbols via `Symbol` overloads.
+# Users choose decomposed directions with physical symbols (`:x1`, `:x2`, `:x3`,
+# `:s`); public accessors also accept physical symbols via `Symbol` overloads.
 # Internal helpers and derivative kernels always work with `Int` storage dims.
 #
 # The only method the parent grid must add beyond the standard ReSolverFlowsBase interface
@@ -127,7 +127,7 @@ Three parallel `K`-tuples describe the decomposition, with one entry per
 decomposed direction:
 
   - `decomposed_physical_dims[k]` — the physical-coordinate symbol
-    (`:x`, `:y`, `:z`, or `:t`) of the `k`-th decomposed direction; must
+    (`:x1`, `:x2`, `:x3`, or `:s`) of the `k`-th decomposed direction; must
     be a spatial inhomogeneous direction (FFT-transformed cannot be decomposed).
   - `nprocesses[k]` — number of ranks along that direction.
   - `nhalo[k]` — halo width along that direction (the FD stencil
@@ -158,7 +158,7 @@ is what `comm(g)` returns.
 ```julia
 g  = ChannelGrid(...)                          # Undecomposed
 dg = distributed(g, MPI.COMM_WORLD;
-                 decomposed_physical_dims=(:y,),
+                 decomposed_physical_dims=(:x2,),
                  nprocesses=(MPI.Comm_size(MPI.COMM_WORLD),),
                  nhalo=(1,))
 ```
@@ -175,7 +175,7 @@ function ReSolverFlowsBase.distributed(               g::ReSolverFlowsBase.Abstr
     # Validate the decomposed-direction labels and translate to storage
     # dims once for the `Decomposed{DIMS}` type-param payload. Time is
     # always homogeneous in this package, so the inhomogeneous_physical_dims
-    # set is automatically free of `:t` and the user-facing "spatial"
+    # set is automatically free of `:s` and the user-facing "spatial"
     # qualifier would be redundant.
     allowed = ReSolverFlowsBase.inhomogeneous_physical_dims(g)
     all(d in allowed for d in decomposed_physical_dims) ||
@@ -374,8 +374,8 @@ ReSolverFlowsBase.weights(g::DecomposedGrid) = g.weights
 
 Return the wavenumber scale for an FFT-transformed direction.
 
-`phys_dim` is the user-facing `Symbol` form (`:x`, `:y`, `:z`,
-`:t`). `stor_dim::Integer` is the internal contract ReSolverFlowsBase reaches
+`phys_dim` is the user-facing `Symbol` form (`:x1`, `:x2`, `:x3`,
+`:s`). `stor_dim::Integer` is the internal contract ReSolverFlowsBase reaches
 for inside its `dd!(out, u, ::Val{STORAGE_DIM})` primitive.
 
 Decomposition does not change which physical period a transformed
@@ -506,18 +506,17 @@ global_size(g::DecomposedGrid, stor_dim::Int) = global_size(g)[stor_dim]
                       ::Val{ORDER}, [mode])
 
 Return the FD differentiation matrix of order `ORDER` along storage
-dimension `stor_dim`, in its forward (`Forward()`, the default) or discrete
-adjoint (`AdjointDiscrete()`) form.
+dimension `stor_dim`, plain or, with `DiscreteAdjoint()`, its discrete adjoint.
 
 Downstream single-domain grid types implement this on `parent(g)`:
 ```
-ReSolverFlowsBase.derivative_matrix(::ParentType, stor_dim::Int, ::Val{ORDER}, mode)
+ReSolverFlowsBase.derivative_matrix(::ParentType, stor_dim::Int, ::Val{ORDER}, mode::AbstractDerivativeMode)
 ```
 """
 ReSolverFlowsBase.derivative_matrix(g::DecomposedGrid,
                    stor_dim::Int,
                            ::Val{ORDER},
-                       mode::OperatorMode=Forward()) where {ORDER} =
+                       mode::AbstractDerivativeMode) where {ORDER} =
     ReSolverFlowsBase.derivative_matrix(g.parent, stor_dim, Val(ORDER), mode)
 
 # Neighbour predicates. Periodic directions always have neighbours;

@@ -53,20 +53,18 @@ ReSolverFlowsBase.weights(g::GPUGrid) = ReSolverFlowsBase.weights(parent(g))
 ReSolverFlowsBase.wavenumber_scale(g::GPUGrid, dim::Int) = ReSolverFlowsBase.wavenumber_scale(parent(g), dim)
 
 """
-    derivative_matrix(g::GPUGrid, stor_dim::Int,
-                      ::Val{ORDER}, ::Val{ADJ}=Val(false))
+    derivative_matrix(g::GPUGrid, stor_dim::Int, ::Val{ORDER}, [DiscreteAdjoint()])
 
 Return the FD differentiation matrix of order `ORDER` along storage
-dimension `stor_dim`, in its forward (`ADJ=false`) or adjoint
-(`ADJ=true`) form.
+dimension `stor_dim`, plain or, with `DiscreteAdjoint()`, its discrete adjoint.
 
 Downstream single-domain grid types implement this on `parent(g)`:
 ```
-ReSolverFlowsBase.derivative_matrix(::ParentType, stor_dim::Int, ::Val{ORDER}, ::Val{ADJ})
+ReSolverFlowsBase.derivative_matrix(::ParentType, stor_dim::Int, ::Val{ORDER}, mode::AbstractDerivativeMode)
 ```
 """
 ReSolverFlowsBase.derivative_matrix(g::GPUGrid,
                    stor_dim::Int,
                            ::Val{ORDER},
-                       mode::ReSolverFlowsBase.OperatorMode=Forward()) where {ORDER} =
+                       mode::ReSolverFlowsBase.AbstractDerivativeMode) where {ORDER} =
     ReSolverFlowsBase.derivative_matrix(parent(g), stor_dim, Val(ORDER), mode)

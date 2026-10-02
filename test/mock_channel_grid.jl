@@ -3,15 +3,15 @@
 #
 # The grid mirrors the production `ReSolverChannelFlow.ChannelGrid` shape:
 #
-#   - 4D storage in storage-axis order `(y, x, z, t)`
-#   - Single inhomogeneous direction (`:y` -> storage dim 1)
-#   - Three FFT directions (`:x`, `:z`, `:t` -> storage dims 2, 3, 4)
+#   - 4D storage in storage-axis order `(y, x, z, s)`
+#   - Single inhomogeneous direction (`:x2` -> storage dim 1)
+#   - Three FFT directions (`:x1`, `:x3`, `:s` -> storage dims 2, 3, 4)
 #   - Wall-normal finite-difference operators `D₁`, `D₂` supplied by FDGrids
 #
 # It is intentionally minimal: only the ReSolverFlowsBase + MPIExt parent-grid
 # hooks needed by `distributed(...)` are implemented. The decomposed test
 # subject is always
-# `distributed(g, comm; decomposed_physical_dims=(:y,), nprocesses=..., nhalo=...)`.
+# `distributed(g, comm; decomposed_physical_dims=(:x2,), nprocesses=..., nhalo=...)`.
 
 import FDGrids,
        Adapt
@@ -152,7 +152,7 @@ end
 function ReSolverFlowsBase.derivative_matrix(g::MockChannelGrid,
                                     ::Integer,
                                     ::Val{ORDER},
-                                    ::Forward) where {ORDER}
+                                    ::Direct) where {ORDER}
     A = ORDER == 1 ? g.D₁ :
         ORDER == 2 ? g.D₂ :
         throw(ArgumentError("MockChannelGrid: unsupported derivative order $ORDER"))
@@ -162,7 +162,7 @@ end
 function ReSolverFlowsBase.derivative_matrix(g::MockChannelGrid,
                                     ::Integer,
                                     ::Val{ORDER},
-                                    ::AdjointDiscrete) where {ORDER}
+                                    ::DiscreteAdjoint) where {ORDER}
     A = ORDER == 1 ? g.D₁ :
         ORDER == 2 ? g.D₂ :
         throw(ArgumentError("MockChannelGrid: unsupported derivative order $ORDER"))
@@ -195,17 +195,17 @@ end
 
 # """
 #     distributed_mock(Ny, Nx, Nz, Nt, comm; nhalo=(1,), T=Float64,
-#                      decomposed_physical_dims=(:y,),
+#                      decomposed_physical_dims=(:x2,),
 #                      nprocesses=(MPI.Comm_size(comm),),
 #                      stencil_width=3) -> DecomposedGrid
 
 # Build a `MockChannelGrid` and wrap it with
-# `ReSolverFlowsBase.distributed(...)` along the wall-normal `:y` direction.
+# `ReSolverFlowsBase.distributed(...)` along the wall-normal `:x2` direction.
 # """
 # function distributed_mock(Ny::Int, Nx::Int, Nz::Int, Nt::Int, comm;
 #                           nhalo = (1,),
 #                           T::Type = Float64,
-#                           decomposed_physical_dims = (:y,),
+#                           decomposed_physical_dims = (:x2,),
 #                           nprocesses = (MPI.Comm_size(comm),),
 #                           stencil_width::Int = 3)
 #     parent = MockChannelGrid(Ny, Nx, Nz, Nt;

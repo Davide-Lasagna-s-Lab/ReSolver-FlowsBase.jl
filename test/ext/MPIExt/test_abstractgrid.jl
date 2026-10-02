@@ -2,7 +2,7 @@
 # `MPIExt/src/abstractgrid.jl`.
 #
 # Runs under any rank count; uses a `MockChannelGrid` parent wrapped via
-# `MPIExt.distributed` along the wall-normal `:y` direction. Every
+# `MPIExt.distributed` along the wall-normal `:x2` direction. Every
 # user-facing accessor exported by abstractgrid.jl gets at least one
 # assertion.
 
@@ -34,7 +34,7 @@ base_comm = MPI.Comm_dup(MPI.COMM_WORLD)
 
 g_parent = MockChannelGrid(Ny, Nx, Nz, Nt)
 g        = distributed(g_parent, base_comm;
-                        decomposed_physical_dims=(:y,), nprocesses=(nranks,), nhalo=(NHALO,))
+                        decomposed_physical_dims=(:x2,), nprocesses=(nranks,), nhalo=(NHALO,))
 
 Ny_local = Ny ÷ nranks
 y_offset = rank * Ny_local
@@ -54,7 +54,7 @@ end
 
 @testset "decomposition_storage_dims / _physical_dims                         " begin
     @test MPIExt.decomposition_storage_dims(g) == (1,)
-    @test MPIExt.decomposition_physical_dims(g) == (:y,)
+    @test MPIExt.decomposition_physical_dims(g) == (:x2,)
     @test MPIExt.ndecomposed_dims(g) == 1
 end
 
@@ -67,20 +67,20 @@ end
 @testset "nhalo                                                               " begin
     # Halos live on the decomposed (wall-normal) storage axis only.
     @test MPIExt.nhalo(g) == (NHALO, 0, 0, 0)
-    @test MPIExt.nhalo(g, :y) == NHALO
+    @test MPIExt.nhalo(g, :x2) == NHALO
 end
 
 @testset "global_first_index                                                  " begin
-    @test MPIExt.global_first_index(g, :y) == y_offset + 1
+    @test MPIExt.global_first_index(g, :x2) == y_offset + 1
     # Non-decomposed coordinates always start at global index 1.
-    @test MPIExt.global_first_index(g, :x) == 1
-    @test MPIExt.global_first_index(g, :z) == 1
-    @test MPIExt.global_first_index(g, :t) == 1
+    @test MPIExt.global_first_index(g, :x1) == 1
+    @test MPIExt.global_first_index(g, :x3) == 1
+    @test MPIExt.global_first_index(g, :s) == 1
 end
 
 @testset "local_interior_range / local_boundary_ranges                        " begin
-    interior = MPIExt.local_interior_range(g, :y)
-    lower, upper = MPIExt.local_boundary_ranges(g, :y)
+    interior = MPIExt.local_interior_range(g, :x2)
+    lower, upper = MPIExt.local_boundary_ranges(g, :x2)
 
     # On every rank, the three ranges (interior, lower, upper) form a
     # disjoint cover of 1:Ny_local. Empty bands are 1:0.
@@ -97,16 +97,16 @@ end
     @test upper == (has_upper_neighbor ? ((Ny_local - NHALO + 1):Ny_local) : (1:0))
 
     # Non-decomposed direction: interior is the whole axis, boundaries are empty.
-    @test MPIExt.local_interior_range(g, :x) == 1:Nx
-    @test MPIExt.local_boundary_ranges(g, :x) == (1:0, 1:0)
+    @test MPIExt.local_interior_range(g, :x1) == 1:Nx
+    @test MPIExt.local_boundary_ranges(g, :x1) == (1:0, 1:0)
 end
 
 @testset "derivative_matrix forwards to parent                                " begin
-    y_sd = ReSolverFlowsBase.storage_dim(g, :y)
-    x_sd = ReSolverFlowsBase.storage_dim(g, :x)
+    y_sd = ReSolverFlowsBase.storage_dim(g, :x2)
+    x_sd = ReSolverFlowsBase.storage_dim(g, :x1)
 
-    D1 = ReSolverFlowsBase.derivative_matrix(g, y_sd, Val(1))
-    D2 = ReSolverFlowsBase.derivative_matrix(g, y_sd, Val(2))
+    D1 = ReSolverFlowsBase.derivative_matrix(g, y_sd, Val(1), Direct())
+    D2 = ReSolverFlowsBase.derivative_matrix(g, y_sd, Val(2), Direct())
     @test D1 === g_parent.D₁
     @test D2 === g_parent.D₂
 end

@@ -37,7 +37,7 @@ lapl_fun(y, x, z, t)   = d2udx2_fun(y, x, z, t) +
 const Ny = 32; const Nx = 7; const Nz = 9; const Nt = 5
 const NHALO = 2  # 5-point stencil -> half-width 2
 
-gp = distributed(MockChannelGrid(Ny, Nx, Nz, Nt; stencil_width=5, α=α_test, β=β_test), comm; decomposed_physical_dims=(:y,),
+gp = distributed(MockChannelGrid(Ny, Nx, Nz, Nt; stencil_width=5, α=α_test, β=β_test), comm; decomposed_physical_dims=(:x2,),
                                                                                              nprocesses              =(nranks,),
                                                                                              nhalo                   =(NHALO,))
 g = CUDA.cu(gp)
@@ -47,12 +47,12 @@ g = CUDA.cu(gp)
     u = CUDA.cu(FFT(ReSolverFlowsBase.Field(gp, u_fun)))
 
     @testset "Spectral derivative directions" begin
-        @test Array(parent(parent(ReSolverFlowsBase.ddx!(similar(u), u)))) ≈ parent(parent(FFT(Field(gp, dudx_fun))))
-        @test Array(parent(parent(ReSolverFlowsBase.ddz!(similar(u), u)))) ≈ parent(parent(FFT(Field(gp, dudz_fun))))
-        @test Array(parent(parent(ReSolverFlowsBase.ddt!(similar(u), u)))) ≈ parent(parent(FFT(Field(gp, dudt_fun))))
+        @test Array(parent(parent(ReSolverFlowsBase.ddx1!(similar(u), u)))) ≈ parent(parent(FFT(Field(gp, dudx_fun))))
+        @test Array(parent(parent(ReSolverFlowsBase.ddx3!(similar(u), u)))) ≈ parent(parent(FFT(Field(gp, dudz_fun))))
+        @test Array(parent(parent(ReSolverFlowsBase.dds!(similar(u), u)))) ≈ parent(parent(FFT(Field(gp, dudt_fun))))
     end
     @testset "Non-spectral derivatives" begin
-        @test Array(parent(parent(ReSolverFlowsBase.ddy!(similar(u), u)))) ≈ parent(parent(FFT(Field(gp, dudy_fun))))
+        @test Array(parent(parent(ReSolverFlowsBase.ddx2!(similar(u), u)))) ≈ parent(parent(FFT(Field(gp, dudy_fun))))
     end
     @testset "Laplacian operator" begin
         @test Array(parent(parent(ReSolverFlowsBase.laplacian!(similar(u), u)))) ≈ parent(parent(FFT(Field(gp, lapl_fun))))

@@ -32,7 +32,7 @@ const NCOMP = 2
 
 base_comm = MPI.Comm_dup(MPI.COMM_WORLD)
 g = distributed(MockChannelGrid(Ny, Nx, Nz, Nt), base_comm;
-                decomposed_physical_dims=(:y,), nprocesses=(nranks,), nhalo=(NHALO,))
+                decomposed_physical_dims=(:x2,), nprocesses=(nranks,), nhalo=(NHALO,))
 
 Ny_local = Ny ÷ nranks
 

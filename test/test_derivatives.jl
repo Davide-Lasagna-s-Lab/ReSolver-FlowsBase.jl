@@ -1,14 +1,14 @@
-# Tests for the spectral-derivative wrappers `ddx!`, `ddy!`, `ddz!`, `ddt!`,
+# Tests for the spectral-derivative wrappers `ddx1!`, `ddx2!`, `ddx3!`, `dds!`,
 # `_add_homogeneous_laplacian!`, and `laplacian!`.
 #
 # Contract (from src/derivatives.jl):
 #
-#   - `ddx!(out, u)` / `ddy!` / `ddz!` / `ddt!` resolve to `Val{STORAGE_DIM}` and
+#   - `ddx1!(out, u)` / `ddx2!` / `ddx3!` / `dds!` resolve to `Val{STORAGE_DIM}` and
 #     compute the spectral derivative along the named physical direction.
 #     For homogeneous (FFT) directions the derivative is multiplication by
 #     `i · k · wavenumber_scale`.
 #
-#   - `dd!` on an absent direction (`:z` on a 2D grid) is a compile-time no-op.
+#   - `dd!` on an absent direction (`:x3` on a 2D grid) is a compile-time no-op.
 #
 #   - `_add_homogeneous_laplacian!(out, u)`  adds `-Σ_{d∈ORDER} (k_d · σ_d)² · u`
 #     into `out` (note the `+=`, not `=`).
@@ -44,9 +44,9 @@
 
         # Physical x is logical coordinate 1 (spectral).  Physical y is logical
         # coordinate 2 (inhomogeneous, dispatches to PolynomialGrid extension).
-        @test parent(ReSolverFlowsBase.ddx!(FTField(g), u)) ≈
+        @test parent(ReSolverFlowsBase.ddx1!(FTField(g), u)) ≈
               parent(FFT(Field(g, dudx_fun))) atol=1e-12
-        @test parent(ReSolverFlowsBase.ddy!(FTField(g), u)) ≈
+        @test parent(ReSolverFlowsBase.ddx2!(FTField(g), u)) ≈
               parent(FFT(Field(g, dudy_fun))) atol=1e-12
 
         # The Laplacian contract is the sum of the inhomogeneous second
@@ -55,23 +55,23 @@
               parent(FFT(Field(g, lapl_fun))) atol=1e-11
     end
 
-    @testset "ddy! is multiplication by i·k·σ on the homogeneous axis" begin
+    @testset "ddx2! is multiplication by i·k·σ on the homogeneous axis" begin
         # FakeGrid is 2-D: AXES = (1, 2, nothing, nothing), ORDER = (2,).
         # Therefore:
-        #   ddx! (AXES[1] = 1): inhomogeneous (custom, defined in fake.jl)
-        #   ddy! (AXES[2] = 2): rfft direction; multiplies by i·k·σ.
-        #   ddz!, ddt!: absent coordinates → compile-time no-ops.
+        #   ddx1! (AXES[1] = 1): inhomogeneous (custom, defined in fake.jl)
+        #   ddx2! (AXES[2] = 2): rfft direction; multiplies by i·k·σ.
+        #   ddx3!, dds!: absent coordinates → compile-time no-ops.
         Nx, Ny = 8, 12
         L = 2π
         g = FakeGrid(rand(Float64, Nx), Ny, L)
         σ = ReSolverFlowsBase.wavenumber_scale(g, 2)            # 2π / L = 1.0 here
 
         # Build u with random coefficients so we can probe individual
-        # wavenumbers after applying ddy!.
+        # wavenumbers after applying ddx2!.
         data = randn(ComplexF64, Nx, (Ny >> 1) + 1)
         u = FTField(g, data)
         out = FTField(g)
-        ReSolverFlowsBase.ddy!(out, u)
+        ReSolverFlowsBase.ddx2!(out, u)
 
         # Each storage column k (1-based) corresponds to signed wavenumber
         # k-1 on the rfft axis.  Expected: out[:, k] == i · (k-1) · σ · u[:, k].
@@ -82,11 +82,11 @@
             @test po[:, k] ≈ expected atol=1e-13
         end
 
-        # ddz!, ddt! are no-ops on FakeGrid (absent coordinates).
+        # ddx3!, dds! are no-ops on FakeGrid (absent coordinates).
         out2 = FTField(g, copy(data))
-        @test parent(ReSolverFlowsBase.ddz!(out2, u)) == data
+        @test parent(ReSolverFlowsBase.ddx3!(out2, u)) == data
         out2 .= data
-        @test parent(ReSolverFlowsBase.ddt!(out2, u)) == data
+        @test parent(ReSolverFlowsBase.dds!(out2, u)) == data
     end
 
     @testset "_add_homogeneous_laplacian! adds −(k σ)² u (not =, +=)" begin
@@ -146,11 +146,11 @@
 
         u = VectorField([FTField(g, randn(ComplexF64, Nx, (Ny>>1)+1)) for _ in 1:3]...)
         out_vec = VectorField(g; N=3)
-        ReSolverFlowsBase.ddy!(out_vec, u)
+        ReSolverFlowsBase.ddx2!(out_vec, u)
 
         for n in 1:3
             expected = FTField(g)
-            ReSolverFlowsBase.ddy!(expected, u[n])
+            ReSolverFlowsBase.ddx2!(expected, u[n])
             @test parent(out_vec[n]) ≈ parent(expected) atol=1e-14
         end
     end

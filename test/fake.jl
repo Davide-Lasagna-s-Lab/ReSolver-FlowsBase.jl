@@ -47,4 +47,4 @@ function LinearAlgebra.mul!(out, ::FakeDerivativeMatrix, u, ::Val, ::Val{ADD}=Va
      ADD && (out .+= u; return out)
 end
 
-ReSolverFlowsBase.derivative_matrix(::FakeGrid, ::Int, ::Val, ::OperatorMode) = FakeDerivativeMatrix()
+ReSolverFlowsBase.derivative_matrix(::FakeGrid, ::Int, ::Val, ::AbstractDerivativeMode) = FakeDerivativeMatrix()

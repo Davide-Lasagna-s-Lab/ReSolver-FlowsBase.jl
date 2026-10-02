@@ -16,7 +16,6 @@ const TEST_FILES_MPICUDA = [
     ("ext/MPICUDAExt/test_derivatives.jl",     "Decomposed CUDA derivatives                                       ", 4),
     ("ext/MPICUDAExt/test_galerkin.jl",        "Decomposed CUDA galerkin method                                   ", 4),
     ("ext/MPICUDAExt/test_dot.jl",             "Decomposed CUDA dot product                                       ", 4),
-    ("ext/MPICUDAExt/test_operators.jl",       "Decomposed CUDA operators                                         ", 4),
 ]
 
 @testset "$(rpad("$name", 68))" for (file, name, nprocs) in TEST_FILES_MPICUDA

@@ -27,7 +27,7 @@ const NCOMP = 2
 
 # construct grid
 gp = MockChannelGrid(Ny, Nx, Nz, Nt)
-g = CUDA.cu(distributed(gp, comm; decomposed_physical_dims=(:y,),
+g = CUDA.cu(distributed(gp, comm; decomposed_physical_dims=(:x2,),
                                   nprocesses              =(nranks,),
                                   nhalo                   =(NHALO,)))
 

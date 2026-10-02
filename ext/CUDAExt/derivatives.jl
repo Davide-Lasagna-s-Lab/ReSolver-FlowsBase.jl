@@ -10,14 +10,14 @@
 ReSolverFlowsBase._spectral_dd!(out::F,
                         u::F,
                          ::Val{STORAGE_DIM},
-                     mode::ReSolverFlowsBase.OperatorMode=ReSolverFlowsBase.Forward()) where {STORAGE_DIM, F<:Union{GPUFTField, GPUProjectedField}} =
+                     mode::ReSolverFlowsBase.AbstractDerivativeMode=ReSolverFlowsBase.Direct()) where {STORAGE_DIM, F<:Union{GPUFTField, GPUProjectedField}} =
     _cuda_spectral_dd!(out, u, Val(STORAGE_DIM), Val(ReSolverFlowsBase.rfft_storage_dim(ReSolverFlowsBase.grid(u))), mode)
 
-function _cuda_spectral_dd!(out, u, ::Val{STORAGE_DIM}, ::Val{RFFT_DIM}, mode::ReSolverFlowsBase.OperatorMode) where {STORAGE_DIM, RFFT_DIM}
+function _cuda_spectral_dd!(out, u, ::Val{STORAGE_DIM}, ::Val{RFFT_DIM}, mode::ReSolverFlowsBase.AbstractDerivativeMode) where {STORAGE_DIM, RFFT_DIM}
     # kernel arguments
     sz     = Int32.(size(u))
     nelem  = Int32(prod(sz))
-    _ddx_sign  = mode isa ReSolverFlowsBase.AdjointDiscrete ? -1im*one(real(eltype(u))) : 1im*one(real(eltype(u)))
+    _ddx_sign  = mode isa ReSolverFlowsBase.DiscreteAdjoint ? -1im*one(real(eltype(u))) : 1im*one(real(eltype(u)))
     _ddx_scale = ReSolverFlowsBase.wavenumber_scale(ReSolverFlowsBase.grid(u), STORAGE_DIM)
 
     # launch kernel
