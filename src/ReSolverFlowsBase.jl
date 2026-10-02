@@ -29,8 +29,7 @@ export save_grid, load_grid, save_field, load_field
 export FarazmandWeight
 export Forward, Nonlinear, Linearised, AdjointContinuous, AdjointDiscrete, AnyLinear, Mode, OperatorMode
 export NoForce, CompoundForcing
-export CartesianPrimitive3D, CartesianPrimitive2D
-export ncomp, cache_length, state_length, linearise_about!
+export NavierStokes, Cartesian, Convective, Rotational, ncomp, linearise_about!
 export Workspace
 export ProjectedEquation, construct_equations
 
@@ -52,8 +51,9 @@ include("derivatives.jl")
 include("io.jl")
 include("equations/forcing.jl")
 include("equations/workspace.jl")
-include("equations/cartesianprimitive_3d.jl")
-include("equations/cartesianprimitive_2d.jl")
+include("equations/geometries.jl")
+include("equations/navierstokes.jl")
+include("equations/navierstokes_convective.jl")
 include("equations/projectedequation.jl")
 include("equations/construct.jl")
 
