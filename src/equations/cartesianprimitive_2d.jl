@@ -1,222 +1,207 @@
-# Concrete Navier-Stokes operators for two-component (u, v) planar Cartesian flows.
+# Two-component (u, v) planar Cartesian primitive-variable formulation.
+# Same operators as the 3D formulation, without w and z-derivatives:
 #
-# Mirror of cartesianprimitive_3d.jl for 2D flows: velocity has no spanwise w
-# component and no z-derivative terms appear.  All cache naming and operator
-# conventions follow the 3D file; refer to that file for the full design notes,
-# including the halo-exchange pattern used by every call method below.
+#     N(u)  = ν∇²u - (u·∇)u + f(u)
+#     L v   = ν∇²v - (U·∇)v - (v·∇)U + f(v)
+#     L* w  = ν∇²⁺w - ∇⁺·(U ⊗ w) - (∇U)ᵀ w + f*(w)     discrete adjoint
+#     L* w  = ν∇²w  + (U·∇)w     - (∇U)ᵀ w + f*(w)     continuous adjoint
 #
-# Variants provided:
-#   CartesianPrimitive2DNSE  — nonlinear NSE: out = Δu/Re − (u·∇)u + force
-#   CartesianPrimitive2DLNSE{Forward}          — forward linearised operator
-#   CartesianPrimitive2DLNSE{AdjointContinuous}— continuous adjoint
-#   CartesianPrimitive2DLNSE{AdjointDiscrete}  — discrete adjoint
+# State: U, ∂U/∂x, ∂U/∂y in physical space.
 
-
-# ----------------------- #
-# concrete 2D NSE struct  #
-# ----------------------- #
 """
-    CartesianPrimitive2DNSE{T, FFT, S, P, BF}
+    CartesianPrimitive2D(mode, work, Re; force=NoForce())
 
-Nonlinear Navier-Stokes operator for two-component planar Cartesian flows.
-
-Evaluates `out = Δu/Re − (u·∇)u + force(out, u, Forward())` in spectral space.
-Identical structure to [`CartesianPrimitive3DNSE`](@ref) with the spanwise
-velocity component and all z-derivatives removed.
+Two-component planar Cartesian primitive-variable Navier–Stokes operator. `mode` is
+[`Nonlinear`](@ref), [`Linearised`](@ref), [`AdjointDiscrete`](@ref) or
+[`AdjointContinuous`](@ref); `work` is the shared [`Workspace`](@ref). Called as
+`op(t, u, out)` on spectral `VectorField`s.
 """
-mutable struct CartesianPrimitive2DNSE{T, FFT, S, P, BF}
-              Re::T
-     const plans::FFT
-    const scache::Vector{VectorField{2, S}}
-    const pcache::Vector{VectorField{2, P}}
-    const  force::BF
+mutable struct CartesianPrimitive2D{MODE, T, W, BF}
+             Re::T    # Reynolds number
+    const  mode::MODE # Nonlinear, Linearised, AdjointDiscrete or AdjointContinuous
+    const  work::W    # shared Workspace: plans, scratch, linearisation state
+    const force::BF   # body force, called as force(out, u, mode)
 end
 
-function CartesianPrimitive2DNSE(g::G, Re;
-                             force::BF=NoForce(),
-                             flags    =FFTW.EXHAUSTIVE) where {T, G<:AbstractGrid{T}, BF}
-    plans  = FFTPlans(g, flags=flags)
-    scache = [VectorField([FTField(g)               for _ in 1:2]...) for _ in 1:2]
-    pcache = [VectorField([  Field(g, dealias=true) for _ in 1:2]...) for _ in 1:3]
-    return CartesianPrimitive2DNSE(T(Re), plans, scache, pcache, force)
-end
+CartesianPrimitive2D(mode::Mode, work::Workspace, Re; force=NoForce()) =
+    CartesianPrimitive2D(_realtype(work)(Re), mode, work, force)
 
-# ----------------------- #
-# concrete 2D LNSE struct #
-# ----------------------- #
-"""
-    CartesianPrimitive2DLNSE{MODE, T, FFT, S, P, BF}
+ncomp(       ::Type{<:CartesianPrimitive2D})                    = 2
+cache_length(::Type{<:CartesianPrimitive2D}, ::Type{<:FTField}) = 3
+cache_length(::Type{<:CartesianPrimitive2D}, ::Type{<:Field})   = 3
+state_length(::Type{<:CartesianPrimitive2D})                    = 3
 
-Linearised Navier-Stokes operator for two-component planar Cartesian flows,
-parameterised on `MODE <: Mode`.
-
-Identical structure to [`CartesianPrimitive3DLNSE`](@ref) with z-derivative
-terms absent.  The three-argument `(t, u, v, out)` form caches base-flow
-gradients from `u` then delegates to the two-argument `(t, v, out)` form.
-"""
-mutable struct CartesianPrimitive2DLNSE{MODE, T, FFT, S, P, BF}
-              Re::T
-     const plans::FFT
-    const scache::Vector{VectorField{2, S}}
-    const pcache::Vector{VectorField{2, P}}
-    const  force::BF
-
-    CartesianPrimitive2DLNSE{MODE}(Re::T,
-                                plans::FFT,
-                               scache::Vector{VectorField{2, S}},
-                               pcache::Vector{VectorField{2, P}},
-                                force::BF) where {MODE, T, FFT, S, P, BF} =
-        new{MODE, T, FFT, S, P, BF}(Re, plans, scache, pcache, force)
-end
-
-function CartesianPrimitive2DLNSE(g::G, Re;
-                               mode::Mode=AdjointDiscrete(),
-                              force::BF  =NoForce(),
-                              flags      =FFTW.EXHAUSTIVE) where {T, G<:AbstractGrid{T}, BF}
-    plans  = FFTPlans(g, flags=flags)
-    scache = [VectorField([FTField(g)               for _ in 1:2]...) for _ in 1:3]
-    pcache = [VectorField([  Field(g, dealias=true) for _ in 1:2]...) for _ in 1:6]
-    return CartesianPrimitive2DLNSE{typeof(mode)}(T(Re), plans, scache, pcache, force)
-end
+ncomp(op::CartesianPrimitive2D) = ncomp(typeof(op))
 
 
-# ------------- #
-# nonlinear NSE #
-# ------------- #
-function (eq::CartesianPrimitive2DNSE)(::Real,
-                                      u::VectorField{2, F},
-                                    out::VectorField{2, F}) where {F<:FTField}
-    dudx = eq.scache[1]; dudy = eq.scache[2]
-    U    = eq.pcache[1]; dUdx = eq.pcache[2]; dUdy = eq.pcache[3]
+# ---------------------------------------------------------------------------- #
+# linearisation state: U, ∂U/∂x, ∂U/∂y                                         #
+# ---------------------------------------------------------------------------- #
+function linearise_about!(op::CartesianPrimitive2D, u::VectorField{2})
+    U, dUdx, dUdy = op.work.state
+    dudx, dudy    = op.work.scache
 
-    laplacian!(out, u)
-    out .*= 1/eq.Re
-
+    # ---- gradient in spectral space ----
     ddx!(dudx, u)
     ddy!(dudy, u)
 
-    eq.plans(U, u)
-    eq.plans(dUdx, dudx); eq.plans(dUdy, dudy)
+    # ---- to physical space ----
+    op.work.plans(U,    u)
+    op.work.plans(dUdx, dudx)
+    op.work.plans(dUdy, dudy)
+
+    return op
+end
+
+
+# ---------------------------------------------------------------------------- #
+# nonlinear: N(u) = ν∇²u - (u·∇)u + f(u)                                       #
+# ---------------------------------------------------------------------------- #
+function (op::CartesianPrimitive2D{Nonlinear})(::Real, u::VectorField{2}, out::VectorField{2})
+    dudx, dudy    = op.work.scache
+    U, dUdx, dUdy = op.work.pcache
+
+    # ---- viscous term ----
+    laplacian!(out, u)
+    out .*= 1/op.Re
+
+    # ---- u and its gradient in physical space ----
+    ddx!(dudx, u)
+    ddy!(dudy, u)
+
+    op.work.plans(U,    u)
+    op.work.plans(dUdx, dudx)
+    op.work.plans(dUdy, dudy)
+
+    # ---- -(u·∇)u, overwriting dUdx ----
     for n in 1:2
         @. dUdx[n] = -U[1]*dUdx[n] - U[2]*dUdy[n]
     end
-    eq.plans(out, dUdx, add=true)
+    op.work.plans(out, dUdx, add=true)
 
-    eq.force(out, u, Forward())
+    # ---- body force ----
+    op.force(out, u, Forward())
+
     return out
 end
 
 
-# -------------- #
-# linearised NSE #
-# -------------- #
-# 3-arg: set up base-flow cache then delegate to 2-arg
-function (eq::CartesianPrimitive2DLNSE)(::Real,
-                                       u::VectorField{2, F},
-                                       v::VectorField{2, F},
-                                     out::VectorField{2, F}) where {F<:FTField}
-    dudx = eq.scache[1]; dudy = eq.scache[2]
-    U    = eq.pcache[1]; dUdy = eq.pcache[3]
+# ---------------------------------------------------------------------------- #
+# linearised: L v = ν∇²v - (U·∇)v - (v·∇)U + f(v)                              #
+# ---------------------------------------------------------------------------- #
+function (op::CartesianPrimitive2D{Linearised})(::Real, v::VectorField{2}, out::VectorField{2})
+    U, dUdx, dUdy = op.work.state
+    dvdx, dvdy    = op.work.scache
+    V, dVdx, dVdy = op.work.pcache
 
-    ddx!(dudx, u)
-    ddy!(dudy, u)
-
-    eq.plans(U, u)
-    eq.plans(dUdy, dudy)
-
-    eq(0, v, out)
-    return out
-end
-
-# forward LNSE
-function (eq::CartesianPrimitive2DLNSE{Forward})(::Real,
-                                                 v::VectorField{2, F},
-                                               out::VectorField{2, F}) where {F<:FTField}
-    dudx = eq.scache[1]; dvdx = eq.scache[2]; dvdy = eq.scache[3]
-    U    = eq.pcache[1]; dUdx = eq.pcache[2]; dUdy = eq.pcache[3]
-    V    = eq.pcache[4]; dVdx = eq.pcache[5]; dVdy = eq.pcache[6]
-
+    # ---- viscous term ----
     laplacian!(out, v)
-    out .*= 1/eq.Re
+    out .*= 1/op.Re
 
+    # ---- v and its gradient in physical space ----
     ddx!(dvdx, v)
     ddy!(dvdy, v)
 
-    eq.plans(V, v)
-    eq.plans(dUdx, dudx)
-    eq.plans(dVdx, dvdx); eq.plans(dVdy, dvdy)
+    op.work.plans(V,    v)
+    op.work.plans(dVdx, dvdx)
+    op.work.plans(dVdy, dvdy)
+
+    # ---- -(U·∇)v - (v·∇)U, overwriting dVdx ----
     for n in 1:2
         @. dVdx[n]  = -U[1]*dVdx[n] - U[2]*dVdy[n]
         @. dVdx[n] -=  V[1]*dUdx[n] + V[2]*dUdy[n]
     end
-    eq.plans(out, dVdx, add=true)
+    op.work.plans(out, dVdx, add=true)
 
-    eq.force(out, v, Forward())
+    # ---- body force ----
+    op.force(out, v, Forward())
+
     return out
 end
 
-# continuous adjoint LNSE
-function (eq::CartesianPrimitive2DLNSE{AdjointContinuous})(::Real,
-                                                           v::VectorField{2, F},
-                                                         out::VectorField{2, F}) where {F<:FTField}
-    dudx = eq.scache[1]; dvdx = eq.scache[2]; dvdy = eq.scache[3]
-    U    = eq.pcache[1]; dUdx = eq.pcache[2]; dUdy = eq.pcache[3]
-    V    = eq.pcache[4]; dVdx = eq.pcache[5]; dVdy = eq.pcache[6]
 
-    laplacian!(out, v)
-    out .*= 1/eq.Re
+# ---------------------------------------------------------------------------- #
+# discrete adjoint: L* w = ν∇²⁺w - ∇⁺·(U ⊗ w) - (∇U)ᵀ w + f*(w)                #
+# ---------------------------------------------------------------------------- #
+function (op::CartesianPrimitive2D{AdjointDiscrete})(::Real, w::VectorField{2}, out::VectorField{2})
+    U, dUdx, dUdy  = op.work.state
+    u1w, u2w, tmp  = op.work.scache
+    W, U1W, U2W    = op.work.pcache
 
-    ddx!(dvdx, v)
-    ddy!(dvdy, v)
+    # ---- viscous term ----
+    laplacian!(out, w, AdjointDiscrete())
+    out .*= 1/op.Re
 
-    eq.plans(V, v)
-    eq.plans(dUdx, dudx)
-    eq.plans(dVdx, dvdx); eq.plans(dVdy, dvdy)
+    # ---- products U_j w in physical space, back to spectral ----
+    op.work.plans(W, w)
+
     for n in 1:2
-        @. dVdx[n] = U[1]*dVdx[n] + U[2]*dVdy[n]
+        @. U1W[n] = U[1]*W[n]
+        @. U2W[n] = U[2]*W[n]
     end
-    dVdy .= 0
+
+    op.work.plans(u1w, U1W)
+    op.work.plans(u2w, U2W)
+
+    # ---- -∇⁺·(U ⊗ w), with adjoint derivatives ----
+    for n in 1:2
+        ddx!(tmp[1], u1w[n], AdjointDiscrete())
+        ddy!(tmp[2], u2w[n], AdjointDiscrete())
+        out[n] .-= tmp[1] .+ tmp[2]
+    end
+
+    # ---- -(∇U)ᵀ w, component i = -Σₙ wₙ ∂ᵢUₙ, reusing U1W ----
+    U1W .= 0
+    for n in 1:2
+        @. U1W[1] -= W[n]*dUdx[n]
+        @. U1W[2] -= W[n]*dUdy[n]
+    end
+    op.work.plans(out, U1W, add=true)
+
+    # ---- body force ----
+    op.force(out, w, AdjointDiscrete())
+
+    return out
+end
+
+
+# ---------------------------------------------------------------------------- #
+# continuous adjoint: L* w = ν∇²w + (U·∇)w - (∇U)ᵀ w + f*(w)                   #
+# ---------------------------------------------------------------------------- #
+function (op::CartesianPrimitive2D{AdjointContinuous})(::Real, w::VectorField{2}, out::VectorField{2})
+    U, dUdx, dUdy = op.work.state
+    dwdx, dwdy    = op.work.scache
+    W, dWdx, dWdy = op.work.pcache
+
+    # ---- viscous term ----
+    laplacian!(out, w)
+    out .*= 1/op.Re
+
+    # ---- w and its gradient in physical space ----
+    ddx!(dwdx, w)
+    ddy!(dwdy, w)
+
+    op.work.plans(W,    w)
+    op.work.plans(dWdx, dwdx)
+    op.work.plans(dWdy, dwdy)
+
+    # ---- +(U·∇)w, overwriting dWdx ----
+    for n in 1:2
+        @. dWdx[n] = U[1]*dWdx[n] + U[2]*dWdy[n]
+    end
+
+    # ---- -(∇U)ᵀ w, reusing dWdy ----
+    dWdy .= 0
     for i in 1:2
-        @. dVdy[1] -= V[i]*dUdx[i]
-        @. dVdy[2] -= V[i]*dUdy[i]
+        @. dWdy[1] -= W[i]*dUdx[i]
+        @. dWdy[2] -= W[i]*dUdy[i]
     end
-    eq.plans(out, dVdx, add=true); eq.plans(out, dVdy, add=true)
 
-    eq.force(out, v, AdjointContinuous())
-    return out
-end
+    op.work.plans(out, dWdx, add=true)
+    op.work.plans(out, dWdy, add=true)
 
-# discrete adjoint LNSE
-function (eq::CartesianPrimitive2DLNSE{AdjointDiscrete})(::Real,
-                                                         v::VectorField{2, F},
-                                                       out::VectorField{2, F}) where {F<:FTField}
-    dudx = eq.scache[1]; u1v  = eq.scache[2]; u2v  = eq.scache[3]
-    U    = eq.pcache[1]; dUdx = eq.pcache[2]; dUdy = eq.pcache[3]
-    V    = eq.pcache[4]; U1V  = eq.pcache[5]; U2V  = eq.pcache[6]
+    # ---- body force ----
+    op.force(out, w, AdjointContinuous())
 
-    laplacian!(out, v, AdjointDiscrete())
-    out .*= 1/eq.Re
-
-    eq.plans(V, v)
-    for n in 1:2
-        @. U1V[n] = U[1]*V[n]
-        @. U2V[n] = U[2]*V[n]
-    end
-    eq.plans(u1v, U1V); eq.plans(u2v, U2V)
-
-    eq.plans(dUdx, dudx)
-    for n in 1:2
-        ddx!(dudx[1], u1v[n], AdjointDiscrete())
-        ddy!(dudx[2], u2v[n], AdjointDiscrete())
-        out[n] .-= dudx[1] .+ dudx[2]
-    end
-    U1V .= 0
-    for n in 1:2
-        @. U1V[1] -= V[n]*dUdx[n]
-        @. U1V[2] -= V[n]*dUdy[n]
-    end
-    eq.plans(out, U1V, add=true)
-
-    eq.force(out, v, AdjointDiscrete())
     return out
 end

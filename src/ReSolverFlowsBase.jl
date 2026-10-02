@@ -27,16 +27,12 @@ export laplacian!
 export shift!, shift, normdiff, minnormdiff, dot, norm
 export save_grid, load_grid, save_field, load_field
 export FarazmandWeight
-export CartesianPrimitive3DNSE, CartesianPrimitive3DLNSE
-export CartesianPrimitive2DNSE, CartesianPrimitive2DLNSE
-export CartesianPrimitive2D3CNSE, CartesianPrimitive2D3CLNSE
-export CartesianPrimitive3DBoussinesqNSE, CartesianPrimitive3DBoussinesqLNSE
-export Forward, AdjointContinuous, AdjointDiscrete, Mode, OperatorMode
+export Forward, Nonlinear, Linearised, AdjointContinuous, AdjointDiscrete, AnyLinear, Mode, OperatorMode
 export NoForce, CompoundForcing
-export construct_equations, CartesianPrimitive3D, CartesianPrimitive2D, CartesianPrimitive2D3C, PolarPrimitive
-export CartesianPrimitive3DBoussinesq
-export ncomp, cache_length, nonlinear_operator, linearised_operator
-export ProjectedNSE
+export CartesianPrimitive3D, CartesianPrimitive2D
+export ncomp, cache_length, state_length, linearise_about!
+export Workspace
+export ProjectedEquation, construct_equations
 
 include("notimplementederror.jl")
 include("abstractgrid.jl")
@@ -55,12 +51,11 @@ include("equations/types.jl")
 include("derivatives.jl")
 include("io.jl")
 include("equations/forcing.jl")
+include("equations/workspace.jl")
 include("equations/cartesianprimitive_3d.jl")
 include("equations/cartesianprimitive_2d.jl")
-include("equations/cartesianprimitive_2d3c.jl")
-include("equations/cartesianprimitive_3d_boussinesq.jl")
-include("equations/projectednse.jl")
-include("equations/shared.jl")
+include("equations/projectedequation.jl")
+include("equations/construct.jl")
 
 
 # dummy function definition for MPI extension

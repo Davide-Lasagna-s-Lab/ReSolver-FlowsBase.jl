@@ -32,6 +32,21 @@ the NSE around the current base flow in the forward-time direction.
 struct Forward           <: Mode end
 
 """
+    Nonlinear <: Mode
+
+Tag selecting the nonlinear Navier–Stokes operator `N(u)` of a formulation.
+"""
+struct Nonlinear         <: Mode end
+
+"""
+    Linearised <: Mode
+
+Tag selecting the linearised Navier–Stokes operator `L v` of a formulation.
+The derivative API keeps [`Forward`](@ref) for the same role.
+"""
+struct Linearised        <: Mode end
+
+"""
     AdjointDiscrete <: Mode
 
 Tag selecting the discrete adjoint of the forward linearised operator.
@@ -50,6 +65,14 @@ which gives a different operator from the discrete adjoint for finite
 resolution.
 """
 struct AdjointContinuous <: Mode end
+
+"""
+    AnyLinear
+
+Union of the modes of the linear operators of a formulation:
+[`Linearised`](@ref), [`AdjointDiscrete`](@ref) and [`AdjointContinuous`](@ref).
+"""
+const AnyLinear = Union{Linearised, AdjointDiscrete, AdjointContinuous}
 
 """
     OperatorMode
