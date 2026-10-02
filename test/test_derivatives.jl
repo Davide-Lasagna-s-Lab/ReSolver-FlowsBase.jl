@@ -1,9 +1,9 @@
-# Tests for the spectral-derivative wrappers `ddx1!`, `ddx2!`, `ddx3!`, `ddt!`,
+# Tests for the spectral-derivative wrappers `ddx1!`, `ddx2!`, `ddx3!`, `dds!`,
 # `_add_homogeneous_laplacian!`, and `laplacian!`.
 #
 # Contract (from src/derivatives.jl):
 #
-#   - `ddx1!(out, u)` / `ddx2!` / `ddx3!` / `ddt!` resolve to `Val{STORAGE_DIM}` and
+#   - `ddx1!(out, u)` / `ddx2!` / `ddx3!` / `dds!` resolve to `Val{STORAGE_DIM}` and
 #     compute the spectral derivative along the named physical direction.
 #     For homogeneous (FFT) directions the derivative is multiplication by
 #     `i · k · wavenumber_scale`.
@@ -60,7 +60,7 @@
         # Therefore:
         #   ddx1! (AXES[1] = 1): inhomogeneous (custom, defined in fake.jl)
         #   ddx2! (AXES[2] = 2): rfft direction; multiplies by i·k·σ.
-        #   ddx3!, ddt!: absent coordinates → compile-time no-ops.
+        #   ddx3!, dds!: absent coordinates → compile-time no-ops.
         Nx, Ny = 8, 12
         L = 2π
         g = FakeGrid(rand(Float64, Nx), Ny, L)
@@ -82,11 +82,11 @@
             @test po[:, k] ≈ expected atol=1e-13
         end
 
-        # ddx3!, ddt! are no-ops on FakeGrid (absent coordinates).
+        # ddx3!, dds! are no-ops on FakeGrid (absent coordinates).
         out2 = FTField(g, copy(data))
         @test parent(ReSolverFlowsBase.ddx3!(out2, u)) == data
         out2 .= data
-        @test parent(ReSolverFlowsBase.ddt!(out2, u)) == data
+        @test parent(ReSolverFlowsBase.dds!(out2, u)) == data
     end
 
     @testset "_add_homogeneous_laplacian! adds −(k σ)² u (not =, +=)" begin

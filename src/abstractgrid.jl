@@ -16,7 +16,7 @@
 # The four type parameters encode:
 #   T              - real scalar type (Float64 by default)
 #   D              - number of array dimensions
-#   AXES           - 4-tuple mapping the coordinates (x1,x2,x3,t) to storage dims
+#   AXES           - 4-tuple mapping the coordinates (x1,x2,x3,s) to storage dims
 #   FFT_DIMS_ORDER - ordered tuple of array dimensions that are FFT-transformed;
 #                    FFT_DIMS_ORDER[1] is always the rfft dimension
 #
@@ -34,8 +34,9 @@ Abstract type that represents a generic computational grid of a
 Type parameters:
 - `T`: scalar real type used by physical-space fields on this grid.
 - `D`: number of array dimensions.
-- `AXES`: four-entry axis layout `(x1_dim, x2_dim, x3_dim, t_dim)`, for three
-  spatial coordinates and time. ReSolverFlowsBase does not interpret the spatial
+- `AXES`: four-entry axis layout `(x1_dim, x2_dim, x3_dim, s_dim)`, for three
+  spatial coordinates and the time phase `s ∈ [0, 2π)`, of period 2π and wavenumber scale one;
+  physical time is `t = s/ω`, with the frequency `ω` held outside the grid. ReSolverFlowsBase does not interpret the spatial
   coordinates: they may be Cartesian `(x, y, z)`, cylindrical `(r, θ, z)`, and
   so on; names belong to the equations built on the grid. Each entry is the
   array dimension occupied by that coordinate, or `nothing` when the coordinate
@@ -100,10 +101,10 @@ fft_storage_dims(::AbstractGrid{<:Any, <:Any, <:Any, FFT_DIMS_ORDER}) where {FFT
     spatial_fft_storage_dims(grid::AbstractGrid) -> Tuple{Int, …}
 
 Return the FFT-transformed array dimensions that correspond to spatial
-coordinates, i.e. `fft_dims(grid)` with the temporal dimension excluded.
+coordinates, i.e. `fft_dims(grid)` with the phase dimension excluded.
 
 For a steady grid this is the same tuple as [`fft_storage_dims`](@ref).  For a
-space-time grid whose logical time coordinate is also transformed, the time
+space-time grid, whose phase coordinate is also transformed, the phase
 dimension is omitted.
 """
 @generated function spatial_fft_storage_dims(::AbstractGrid{<:Any, <:Any, AXES, FFT_DIMS_ORDER}) where {AXES, FFT_DIMS_ORDER}
@@ -125,8 +126,8 @@ end
     spatial_inhomogeneous_storage_dims(grid::AbstractGrid) -> Tuple
 
 Return the inhomogeneous array dimensions that correspond to spatial (not
-temporal) coordinates - i.e. dimensions in `inhomogeneous_storage_dims(grid)` that
-are not the time axis `AXES[4]`.  These are the dimensions for which a
+phase) coordinates - i.e. dimensions in `inhomogeneous_storage_dims(grid)` that
+are not the phase axis `AXES[4]`.  These are the dimensions for which a
 finite-difference or collocation derivative must be applied.
 """
 @generated function spatial_inhomogeneous_storage_dims(::AbstractGrid{<:Any, D, AXES, FFT_DIMS_ORDER}) where {D, AXES, FFT_DIMS_ORDER}
@@ -166,8 +167,7 @@ fft_physical_dims(g::AbstractGrid) =
 
 Physical-coordinate symbols for the spatial FFT-transformed storage
 dimensions of `grid` - the `Symbol` counterpart of
-[`spatial_fft_storage_dims`](@ref). A transformed logical time
-coordinate is excluded.
+[`spatial_fft_storage_dims`](@ref). The phase coordinate is excluded.
 """
 spatial_fft_physical_dims(g::AbstractGrid) =
     map(d -> physical_dim(g, d), spatial_fft_storage_dims(g))
@@ -187,7 +187,7 @@ inhomogeneous_physical_dims(g::AbstractGrid) =
 
 Physical-coordinate symbols for the spatial inhomogeneous storage
 dimensions of `grid` - the `Symbol` counterpart of
-[`spatial_inhomogeneous_storage_dims`](@ref). The time coordinate is
+[`spatial_inhomogeneous_storage_dims`](@ref). The phase coordinate is
 excluded.
 """
 spatial_inhomogeneous_physical_dims(g::AbstractGrid) =
@@ -308,14 +308,14 @@ end
 
 Return the storage-array dimension used for physical direction `physical_dim`.
 
-`physical_dim` may be one of `:x1`, `:x2`, `:x3`, or `:t`, or `Val` of one of those
+`physical_dim` may be one of `:x1`, `:x2`, `:x3`, or `:s`, or `Val` of one of those
 symbols. A missing physical direction returns `nothing`, which lets derivative
 wrappers for absent coordinates become no-ops.
 
 # Examples
 
 For `AXES = (2, 1, 3, nothing)`, `storage_dim(grid, :x1) == 2`,
-`storage_dim(grid, :x2) == 1`, and `storage_dim(grid, :t) === nothing`.
+`storage_dim(grid, :x2) == 1`, and `storage_dim(grid, :s) === nothing`.
 """
 # `where {T<:Real, D}` matches the constraint on the abstract type's
 # first parameter explicitly; without it Julia (1.12+) sees the literal
@@ -324,10 +324,10 @@ For `AXES = (2, 1, 3, nothing)`, `storage_dim(grid, :x1) == 2`,
 storage_dim(::AbstractGrid{T, D, AXES} where {T<:Real, D}, ::Val{:x1}) where {AXES} = AXES[1]
 storage_dim(::AbstractGrid{T, D, AXES} where {T<:Real, D}, ::Val{:x2}) where {AXES} = AXES[2]
 storage_dim(::AbstractGrid{T, D, AXES} where {T<:Real, D}, ::Val{:x3}) where {AXES} = AXES[3]
-storage_dim(::AbstractGrid{T, D, AXES} where {T<:Real, D}, ::Val{:t})  where {AXES} = AXES[4]
+storage_dim(::AbstractGrid{T, D, AXES} where {T<:Real, D}, ::Val{:s})  where {AXES} = AXES[4]
 storage_dim(grid::AbstractGrid, physical_dim::Symbol) = storage_dim(grid, Val(physical_dim))
 function storage_dim(::AbstractGrid, ::Val{DIM}) where {DIM}
-    throw(ArgumentError("physical direction must be one of :x1, :x2, :x3, or :t; got $(repr(DIM))"))
+    throw(ArgumentError("physical direction must be one of :x1, :x2, :x3, or :s; got $(repr(DIM))"))
 end
 
 """
@@ -350,10 +350,10 @@ physical_dim(grid::AbstractGrid, storage_dim::Integer) = physical_dim(grid, Val(
 @generated function physical_dim(::AbstractGrid{<:Any, D, AXES}, ::Val{DIM}) where {D, AXES, DIM}
     isnothing(DIM) && return :(nothing)
     if DIM isa Symbol
-        if DIM in (:x1, :x2, :x3, :t)
+        if DIM in (:x1, :x2, :x3, :s)
             return QuoteNode(DIM)
         end
-        msg = "physical direction must be one of :x1, :x2, :x3, or :t; got $(repr(DIM))"
+        msg = "physical direction must be one of :x1, :x2, :x3, or :s; got $(repr(DIM))"
         return :(throw(ArgumentError($msg)))
     end
     if !(DIM isa Integer)
@@ -364,7 +364,7 @@ physical_dim(grid::AbstractGrid, storage_dim::Integer) = physical_dim(grid, Val(
         msg = "storage dimension $DIM is outside 1:$D"
         return :(throw(ArgumentError($msg)))
     end
-    directions = (:x1, :x2, :x3, :t)
+    directions = (:x1, :x2, :x3, :s)
     i = findfirst(==(DIM), AXES)
     isnothing(i) && return :(nothing)
     return QuoteNode(directions[i])
@@ -377,7 +377,7 @@ Return the storage-array dimension for `physical_dim`, wrapped in a `Val`
 so it can feed type-stably into other `Val`-dispatched functions (e.g.
 `FDGrids.mul!`).
 
-`physical_dim` may be a coordinate symbol (`:x1`, `:x2`, `:x3`, `:t`) or a
+`physical_dim` may be a coordinate symbol (`:x1`, `:x2`, `:x3`, `:s`) or a
 `Val` of one. The result is `Val{N}` where `N` is the storage dimension
 hosting that physical direction, or `Val{nothing}` when the grid omits
 that coordinate.
@@ -392,7 +392,7 @@ from a runtime `Int` and breaks the type-stable chain.
 
 For `AXES = (2, 1, 3, nothing)`, `physical_to_storage_dim(g, Val(:x1))`
 returns `Val(2)`, `physical_to_storage_dim(g, Val(:x2))` returns
-`Val(1)`, and `physical_to_storage_dim(g, Val(:t))` returns
+`Val(1)`, and `physical_to_storage_dim(g, Val(:s))` returns
 `Val(nothing)`.
 """
 @generated function physical_to_storage_dim(::AbstractGrid{<:Any, <:Any, AXES},
@@ -400,9 +400,9 @@ returns `Val(2)`, `physical_to_storage_dim(g, Val(:x2))` returns
     idx = if PHYSICAL_DIM === :x1; 1
       elseif PHYSICAL_DIM === :x2; 2
       elseif PHYSICAL_DIM === :x3; 3
-      elseif PHYSICAL_DIM === :t; 4
+      elseif PHYSICAL_DIM === :s; 4
     else
-        msg = "physical direction must be :x1, :x2, :x3, or :t; got $(repr(PHYSICAL_DIM))"
+        msg = "physical direction must be :x1, :x2, :x3, or :s; got $(repr(PHYSICAL_DIM))"
         return :(throw(ArgumentError($msg)))
     end
     storage_dim_value = AXES[idx]
@@ -469,8 +469,8 @@ points(grid::AbstractGrid; dealias=false) = throw(NotImplementedError(grid))
     wavenumber_scale(grid::AbstractGrid, dim::Int) -> Real
 
 Return the physical wavenumber scaling factor for homogeneous dimension `dim`.
-For a spatial direction with period `L` the factor is `2π/L`; for a unit-period
-temporal direction, return `1`.
+For a spatial direction with period `L` the factor is `2π/L`; for the phase direction `s`, of
+period `2π`, it is `1`.
 
 Downstream packages must extend this for each dimension in `fft_storage_dims(grid)`.
 """

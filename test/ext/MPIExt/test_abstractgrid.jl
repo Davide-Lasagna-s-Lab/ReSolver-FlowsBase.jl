@@ -75,7 +75,7 @@ end
     # Non-decomposed coordinates always start at global index 1.
     @test MPIExt.global_first_index(g, :x1) == 1
     @test MPIExt.global_first_index(g, :x3) == 1
-    @test MPIExt.global_first_index(g, :t) == 1
+    @test MPIExt.global_first_index(g, :s) == 1
 end
 
 @testset "local_interior_range / local_boundary_ranges                        " begin

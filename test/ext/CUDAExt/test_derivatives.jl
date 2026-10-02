@@ -6,5 +6,5 @@
     @test_nowarn ddx1!(FTField(gd), u)
     @test_nowarn ddx2!(FTField(gd), u)
     @test_nowarn ddx3!(FTField(gd), u)
-    @test_nowarn ddt!(FTField(gd), u)
+    @test_nowarn dds!(FTField(gd), u)
 end

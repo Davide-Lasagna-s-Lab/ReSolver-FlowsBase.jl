@@ -4,7 +4,7 @@
 # Covers:
 #   - `interior_dd!` / `boundary_dd!` cover the local dimension exactly
 #   - staged `init_ddy!` / `complete_ddy!` matches the global derivative
-#   - spectral directions (`:x1`, `:x3`, `:t`) bypass the FD path
+#   - spectral directions (`:x1`, `:x3`, `:s`) bypass the FD path
 #   - vector-field derivatives consume per-component halo request tuples
 #   - `interior_laplacian!` / `boundary_laplacian!` reproduce the
 #     analytic Laplacian after halo exchange
@@ -118,7 +118,7 @@ end
     @test parent(out_z) ≈ parent(expected_z) rtol=1e-6
 
     out_t = ReSolverFlowsBase.FTField(g)
-    ReSolverFlowsBase.dd!(out_t, u, sd(:t))
+    ReSolverFlowsBase.dd!(out_t, u, sd(:s))
     expected_t = ReSolverFlowsBase.FTField(g)
     plans(expected_t, ReSolverFlowsBase.Field(g, dudt_fun))
     @test parent(out_t) ≈ parent(expected_t) rtol=1e-6

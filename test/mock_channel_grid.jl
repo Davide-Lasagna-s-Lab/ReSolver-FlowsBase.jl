@@ -3,9 +3,9 @@
 #
 # The grid mirrors the production `ReSolverChannelFlow.ChannelGrid` shape:
 #
-#   - 4D storage in storage-axis order `(y, x, z, t)`
+#   - 4D storage in storage-axis order `(y, x, z, s)`
 #   - Single inhomogeneous direction (`:x2` -> storage dim 1)
-#   - Three FFT directions (`:x1`, `:x3`, `:t` -> storage dims 2, 3, 4)
+#   - Three FFT directions (`:x1`, `:x3`, `:s` -> storage dims 2, 3, 4)
 #   - Wall-normal finite-difference operators `D₁`, `D₂` supplied by FDGrids
 #
 # It is intentionally minimal: only the ReSolverFlowsBase + MPIExt parent-grid

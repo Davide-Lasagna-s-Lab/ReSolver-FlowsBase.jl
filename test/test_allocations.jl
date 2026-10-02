@@ -92,7 +92,7 @@ end
 
     @testset "src/abstractgrid.jl" begin
         (; g) = alloc_fixture()
-        values = (:x1, :x2, :x3, :t)
+        values = (:x1, :x2, :x3, :s)
 
         @test allocs_after_warmup(() -> ReSolverFlowsBase.fft_storage_dims(g)) == 0
         @test allocs_after_warmup(() -> ReSolverFlowsBase.inhomogeneous_storage_dims(g)) == 0
@@ -327,7 +327,7 @@ end
             @test allocs_after_warmup(() -> ddx2!(out, u)) == 0
         end
         @test allocs_after_warmup(() -> ddx3!(out, u)) == 0
-        @test allocs_after_warmup(() -> ddt!(out, u)) == 0
+        @test allocs_after_warmup(() -> dds!(out, u)) == 0
         @test allocs_after_warmup(() -> ReSolverFlowsBase.dd!(out, u, Val(2))) == 0
         @test allocs_after_warmup(() -> ReSolverFlowsBase.dd!(qout, q, Val(2))) == 0
         # _inhomogeneous_laplacian! and laplacian! also go through mul! on PolynomialGrid.

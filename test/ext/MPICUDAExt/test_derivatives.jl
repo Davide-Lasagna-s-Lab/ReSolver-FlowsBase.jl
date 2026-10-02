@@ -49,7 +49,7 @@ g = CUDA.cu(gp)
     @testset "Spectral derivative directions" begin
         @test Array(parent(parent(ReSolverFlowsBase.ddx1!(similar(u), u)))) ≈ parent(parent(FFT(Field(gp, dudx_fun))))
         @test Array(parent(parent(ReSolverFlowsBase.ddx3!(similar(u), u)))) ≈ parent(parent(FFT(Field(gp, dudz_fun))))
-        @test Array(parent(parent(ReSolverFlowsBase.ddt!(similar(u), u)))) ≈ parent(parent(FFT(Field(gp, dudt_fun))))
+        @test Array(parent(parent(ReSolverFlowsBase.dds!(similar(u), u)))) ≈ parent(parent(FFT(Field(gp, dudt_fun))))
     end
     @testset "Non-spectral derivatives" begin
         @test Array(parent(parent(ReSolverFlowsBase.ddx2!(similar(u), u)))) ≈ parent(parent(FFT(Field(gp, dudy_fun))))

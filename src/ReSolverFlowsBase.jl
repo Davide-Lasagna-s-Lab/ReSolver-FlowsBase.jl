@@ -21,7 +21,7 @@ export add_base_flow!
 export FFTPlans, FFT, IFFT
 export ProjectedField, modes, project!, project, expand!, expand
 export LoopGalerkin, GemmGalerkin
-export dd!, ddx1!, ddx2!, ddx3!, ddt!, AbstractDerivativeMode, Direct, DiscreteAdjoint
+export dd!, ddx1!, ddx2!, ddx3!, dds!, AbstractDerivativeMode, Direct, DiscreteAdjoint
 export laplacian!
 export shift!, shift, normdiff, minnormdiff, dot, norm
 export save_grid, load_grid, save_field, load_field

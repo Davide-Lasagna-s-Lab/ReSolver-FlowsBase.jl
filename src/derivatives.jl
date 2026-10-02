@@ -1,6 +1,6 @@
 # Spectral differentiation operators for FTField, ProjectedField, and VectorField.
 #
-# Entry points are `ddx1!`, `ddx2!`, `ddx3!`, `ddt!` — one per coordinate.
+# Entry points are `ddx1!`, `ddx2!`, `ddx3!`, `dds!` — one per coordinate.
 # Each resolves its direction to a compile-time `Val{STORAGE_DIM}` via
 # `physical_to_storage_dim` and delegates to `dd!(out, u, ::Val{STORAGE_DIM})`.
 #
@@ -83,8 +83,11 @@ ddx2!(out, u, mode::AbstractDerivativeMode=Direct()) = dd!(out, u, physical_to_s
 """Differentiate `u` along the third spatial coordinate `x3`; see [`ddx1!`](@ref)."""
 ddx3!(out, u, mode::AbstractDerivativeMode=Direct()) = dd!(out, u, physical_to_storage_dim(grid(u), Val(:x3)), mode)
 
-"""Differentiate `u` along time `t`; see [`ddx1!`](@ref)."""
-ddt!(out, u, mode::AbstractDerivativeMode=Direct()) = dd!(out, u, physical_to_storage_dim(grid(u), Val(:t)), mode)
+"""
+Differentiate `u` along the time phase `s ∈ [0, 2π)`; see [`ddx1!`](@ref). The time derivative
+of a solution of frequency `ω` is `ω` times this.
+"""
+dds!(out, u, mode::AbstractDerivativeMode=Direct()) = dd!(out, u, physical_to_storage_dim(grid(u), Val(:s)), mode)
 
 dd!(out::VectorField{N}, u::VectorField{N}, sd::Val, mode::AbstractDerivativeMode=Direct()) where {N} =
     (for n in 1:N; dd!(out[n], u[n], sd, mode); end; return out)
@@ -189,8 +192,7 @@ Add the homogeneous Laplacian contribution of `u` to `out`:
     out[mode] -= (∑_{d∈spatial_fft_storage_dims(g)} (wavenumber_scale(g, d) · n_d)²) · u[mode]
 
 Call after computing the non-homogeneous (e.g. wall-normal) second derivative.
-If the grid includes a transformed logical time coordinate, that direction is
-not part of the spatial Laplacian.
+If the grid includes the phase coordinate, that direction is not part of the spatial Laplacian.
 """
 function _add_homogeneous_laplacian!(out::FTField{G}, u::FTField{G}) where {T, D, AXES, FFT_DIMS_ORDER, G<:AbstractGrid{T, D, AXES, FFT_DIMS_ORDER}}
     g = grid(u)
@@ -256,7 +258,7 @@ Compute the full Laplacian of `u` in-place, storing the result in `out`:
                  - ∑_{d∈spatial_fft_storage_dims(g)} (wavenumber_scale(g, d) · n_d)²) · u[mode]
 
 Only spatial transformed directions enter the homogeneous sum; a transformed
-logical time coordinate is excluded through [`spatial_fft_storage_dims`](@ref).
+phase coordinate is excluded through [`spatial_fft_storage_dims`](@ref).
 
 `mode` selects the operator variant for the finite-difference part;
 the homogeneous −‖k‖² contribution is self-adjoint and unaffected.
